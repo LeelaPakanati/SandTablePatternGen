@@ -100,6 +100,7 @@ body {
 
 .upload-placeholder {
     text-align: center;
+    pointer-events: none;
 }
 
 .upload-placeholder .icon {
@@ -119,6 +120,7 @@ body {
     height: 100%;
     object-fit: contain;
     background: black;
+    pointer-events: none;
 }
 
 /* Params Card */
@@ -226,6 +228,22 @@ input[type=range] {
     font-size: 0.9rem;
     color: var(--sub-text);
     min-height: 1.2em;
+}
+
+.progress-container {
+    width: 100%;
+    height: 8px;
+    background: var(--input-bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 5px 0;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--primary-color);
+    transition: width 0.2s ease;
 }
 
 /* Improved Stop Button */
