@@ -169,19 +169,40 @@ int main(int argc, char** argv) {
         // Load Image
         int width, height, channels;
         if (stbi_info(input_file.c_str(), &width, &height, &channels) == 0) {
-            // Try magick conversion if stbi fails
-             std::string temp = "cli_temp.png";
-             std::string cmd = "magick " + input_file + " -strip " + temp;
-             if (std::system(cmd.c_str()) == 0) {
-                 input_file = temp;
-                 if (stbi_info(input_file.c_str(), &width, &height, &channels) == 0) {
-                     std::cerr << "Error: Could not load converted image " << input_file << std::endl;
-                     return 1;
-                 }
-             } else {
-                 std::cerr << "Error: Could not load image " << input_file << std::endl;
-                 return 1;
-             }
+            // Try native load and potential resize/conversion
+            unsigned char* raw_data = stbi_load(input_file.c_str(), &width, &height, &channels, 0);
+            if (raw_data) {
+                // If it's too big, resize
+                if (width > 2048 || height > 2048) {
+                    float ratio = std::min(2048.0f / width, 2048.0f / height);
+                    int new_width = (int)(width * ratio);
+                    int new_height = (int)(height * ratio);
+                    auto resized = EdgeDetector::resize(raw_data, width, height, channels, new_width, new_height);
+                    stbi_image_free(raw_data);
+                    
+                    std::string temp = "cli_temp.png";
+                    stbi_write_png(temp.c_str(), new_width, new_height, channels, resized.data(), new_width * channels);
+                    input_file = temp;
+                    width = new_width;
+                    height = new_height;
+                } else {
+                    stbi_image_free(raw_data);
+                }
+            } else {
+                // Fallback to magick
+                std::string temp = "cli_temp.png";
+                std::string cmd = "magick " + input_file + " -strip " + temp;
+                if (std::system(cmd.c_str()) == 0) {
+                    input_file = temp;
+                    if (stbi_info(input_file.c_str(), &width, &height, &channels) == 0) {
+                        std::cerr << "Error: Could not load converted image " << input_file << std::endl;
+                        return 1;
+                    }
+                } else {
+                    std::cerr << "Error: Could not load image " << input_file << std::endl;
+                    return 1;
+                }
+            }
         }
 
         auto edges = EdgeDetector::detect_edges(input_file, low, high, blur);

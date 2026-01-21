@@ -16,8 +16,8 @@ struct Component {
 };
 
 static inline double dist_sq(Point p1, Point p2) {
-    double dx = p1.x - p2.x;
-    double dy = p1.y - p2.y;
+    double dx = (double)p1.x - p2.x;
+    double dy = (double)p1.y - p2.y;
     return dx * dx + dy * dy;
 }
 
@@ -30,66 +30,78 @@ static inline double dist_sq_to_bbox(Point p, int min_x, int min_y, int max_x, i
 std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points, int width, int height) {
     if (input_points.empty()) return {};
 
-    // 1. Identify Components (BFS) for noise filtering
-    std::vector<int> grid(width * height, -1);
-    for (const auto& p : input_points) {
+    // 1. Identify Components using DSU (Parallel)
+    std::vector<int> point_idx_map(width * height, -1);
+    for (int i = 0; i < (int)input_points.size(); ++i) {
+        const auto& p = input_points[i];
         if (p.x >= 0 && p.x < width && p.y >= 0 && p.y < height)
-            grid[p.y * width + p.x] = -2;
+            point_idx_map[p.y * width + p.x] = i;
     }
 
-    std::vector<Component> components;
-    int comp_id = 0;
-    for (const auto& p : input_points) {
-        int idx = p.y * width + p.x;
-        if (grid[idx] == -2) {
-            Component comp;
-            comp.id = comp_id++;
-            comp.min_x = comp.max_x = p.x;
-            comp.min_y = comp.max_y = p.y;
-            std::queue<Point> q;
-            q.push(p);
-            grid[idx] = comp.id;
-            comp.points.push_back(p);
-            while (!q.empty()) {
-                Point curr = q.front(); q.pop();
-                comp.min_x = std::min(comp.min_x, curr.x);
-                comp.max_x = std::max(comp.max_x, curr.x);
-                comp.min_y = std::min(comp.min_y, curr.y);
-                comp.max_y = std::max(comp.max_y, curr.y);
-                for (int dy = -1; dy <= 1; ++dy) {
-                    for (int dx = -1; dx <= 1; ++dx) {
-                        if (dx == 0 && dy == 0) continue;
-                        int nx = curr.x + dx, ny = curr.y + dy;
-                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                            int nidx = ny * width + nx;
-                            if (grid[nidx] == -2) {
-                                grid[nidx] = comp.id;
-                                Point np = {nx, ny};
-                                comp.points.push_back(np);
-                                q.push(np);
-                            }
-                        }
+    std::vector<int> dsu_parent(input_points.size());
+    for (int i = 0; i < (int)input_points.size(); ++i) dsu_parent[i] = i;
+    std::mutex dsu_mutex;
+
+    auto dsu_find = [&](int i) {
+        while (dsu_parent[i] != i) i = dsu_parent[i];
+        return i;
+    };
+
+    auto dsu_unite = [&](int i, int j) {
+        int root_i = dsu_find(i);
+        int root_j = dsu_find(j);
+        if (root_i != root_j) {
+            std::lock_guard<std::mutex> lock(dsu_mutex);
+            root_i = dsu_find(i);
+            root_j = dsu_find(j);
+            if (root_i != root_j) dsu_parent[root_i] = root_j;
+        }
+    };
+
+    Utils::parallel_for(0, (int)input_points.size(), [&](int i) {
+        const auto& p = input_points[i];
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                if (dx == 0 && dy == 0) continue;
+                int nx = p.x + dx, ny = p.y + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    int neighbor_idx = point_idx_map[ny * width + nx];
+                    if (neighbor_idx != -1 && neighbor_idx > i) {
+                        dsu_unite(i, neighbor_idx);
                     }
                 }
             }
-            components.push_back(comp);
         }
+    });
+
+    std::map<int, std::vector<Point>> component_map;
+    for (int i = 0; i < (int)input_points.size(); ++i) {
+        int root = dsu_find(i);
+        component_map[root].push_back(input_points[i]);
     }
 
-    // Filter small components (noise)
-    const size_t MIN_COMPONENT_SIZE = 1;
-    components.erase(
-        std::remove_if(components.begin(), components.end(), 
-            [](const Component& c) { return c.points.size() < MIN_COMPONENT_SIZE; }),
-        components.end()
-    );
+    std::vector<Component> components;
+    int next_comp_id = 0;
+    for (auto& pair : component_map) {
+        Component comp;
+        comp.id = next_comp_id++;
+        comp.points = std::move(pair.second);
+        comp.min_x = comp.max_x = comp.points[0].x;
+        comp.min_y = comp.max_y = comp.points[0].y;
+        for (const auto& p : comp.points) {
+            comp.min_x = std::min(comp.min_x, p.x);
+            comp.max_x = std::max(comp.max_x, p.x);
+            comp.min_y = std::min(comp.min_y, p.y);
+            comp.max_y = std::max(comp.max_y, p.y);
+        }
+        components.push_back(comp);
+    }
 
     if (components.empty()) return {};
 
     // 2. Setup for traversal
     std::vector<uint8_t> has_point(width * height, 0);
     std::vector<uint8_t> visited(width * height, 0);
-    std::vector<Point> unvisited_list;
     std::vector<int> point_to_comp(width * height, -1);
     std::vector<int> comp_remaining_counts(components.size(), 0);
 
@@ -98,7 +110,6 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
             int idx = p.y * width + p.x;
             if (!has_point[idx]) {
                 has_point[idx] = 1;
-                unvisited_list.push_back(p);
                 point_to_comp[idx] = comp.id;
                 comp_remaining_counts[comp.id]++;
             }
@@ -113,14 +124,13 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
     int cx = width / 2;
     int cy = height / 2;
 
-    size_t remaining = unvisited_list.size();
+    size_t remaining = input_points.size();
     Point curr_p = { cx, cy };
     std::vector<Point> path;
     path.push_back(curr_p);
     std::vector<uint8_t> is_in_path(width * height, 0);
     is_in_path[curr_p.y * width + curr_p.x] = 1;
 
-    // Spatial Grid for path points to speed up "nearest" queries
     const int GRID_SIZE = 16;
     int grid_cols = (width + GRID_SIZE - 1) / GRID_SIZE;
     int grid_rows = (height + GRID_SIZE - 1) / GRID_SIZE;
@@ -142,7 +152,6 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
     };
 
     auto add_straight = [&](Point start, Point end) {
-        // Bresenham line from start to end, excluding both start and endpoint (caller adds endpoint)
         if (start.x == end.x && start.y == end.y) return;
         int x0 = start.x, y0 = start.y, x1 = end.x, y1 = end.y;
         int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
@@ -152,7 +161,7 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
             e2 = 2 * err;
             if (e2 >= dy) { err += dy; x0 += sx; }
             if (e2 <= dx) { err += dx; y0 += sy; }
-            if (x0 == x1 && y0 == y1) break;  // Stop before endpoint
+            if (x0 == x1 && y0 == y1) break;
             path.push_back({x0, y0});
             mark_visited(x0, y0);
         }
@@ -162,23 +171,22 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
     {
         double min_d = std::numeric_limits<double>::max();
         int best_idx = -1;
-        for(size_t i=0; i<unvisited_list.size(); ++i) {
-            double d = dist_sq(curr_p, unvisited_list[i]);
+        for(size_t i=0; i<input_points.size(); ++i) {
+            double d = dist_sq(curr_p, input_points[i]);
             if (d < min_d) { min_d = d; best_idx = i; }
         }
         if (best_idx != -1) {
-            Point target = unvisited_list[best_idx];
+            Point target = input_points[best_idx];
             add_straight(curr_p, target);
             curr_p = target;
-            path.push_back(curr_p);  // Add target to path
+            path.push_back(curr_p);
             mark_visited(curr_p.x, curr_p.y);
         }
     }
 
+    int s3_count = 0;
     while (remaining > 0) {
         Point next_p = {-1, -1};
-        
-        // Strategy 2: Follow along any lines (unvisited neighbors)
         for (int dy = -1; dy <= 1; ++dy) {
             for (int dx = -1; dx <= 1; ++dx) {
                 if (dx == 0 && dy == 0) continue;
@@ -193,21 +201,19 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
             }
         }
 
-        // Strategy 3: Global search for the best jumping-off point on the existing path
+        // Strategy 3: Global search
         {
+            s3_count++;
             Point best_v = {-1, -1};
             Point best_u = {-1, -1};
             double global_min_dist_sq = std::numeric_limits<double>::max();
             std::mutex min_mutex;
 
-            // Parallelize the search across active components.
             Utils::parallel_for(0, (int)active_comp_indices.size(), [&](int i) {
                 int c_idx = active_comp_indices[i];
                 if (comp_remaining_counts[c_idx] == 0) return;
-
                 const auto& comp = components[c_idx];
                 
-                // Sample points from the component to find the nearest path point
                 size_t step = 1;
                 if (comp.points.size() > 100) step = comp.points.size() / 10;
                 else if (comp.points.size() > 20) step = 4;
@@ -224,8 +230,6 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
                     bool found_in_radius = false;
                     for (int r = 0; r < std::max(grid_cols, grid_rows); ++r) {
                         if (found_in_radius && r > (int)(std::sqrt(local_min_dist_sq)/GRID_SIZE) + 1) break;
-
-                        // Prune search radius based on global best
                         {
                             std::lock_guard<std::mutex> lock(min_mutex);
                             if (found_in_radius && local_min_dist_sq >= global_min_dist_sq) break;
@@ -262,8 +266,7 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
             });
 
             if (best_u.x != -1) {
-                // Periodically clean up active_comp_indices to keep search fast
-                if (remaining % 100 == 0) { // Using remaining as a proxy for progress
+                if (s3_count % 10 == 0) {
                     active_comp_indices.erase(
                         std::remove_if(active_comp_indices.begin(), active_comp_indices.end(),
                             [&](int cid) { return comp_remaining_counts[cid] == 0; }),
@@ -271,11 +274,9 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
                     );
                 }
 
-                // Trace from current position to best_v through already traversed points
                 if (curr_p.x != best_v.x || curr_p.y != best_v.y) {
                     std::queue<Point> q;
                     q.push(curr_p);
-                    
                     static std::vector<int> parent;
                     if (parent.size() != (size_t)width * height) parent.assign(width * height, -1);
                     else std::fill(parent.begin(), parent.end(), -1);
@@ -314,8 +315,6 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
                         curr_p = best_v;
                     }
                 }
-
-                // Jump from the best jumping-off point to the target segment
                 add_straight(curr_p, best_u);
                 next_p = best_u;
                 goto found_point;

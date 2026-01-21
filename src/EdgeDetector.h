@@ -23,6 +23,9 @@ public:
     // Assumes grayscale or RGB data. If channels >= 3, converts to grayscale.
     static std::vector<Point> detect_edges_from_memory(const unsigned char* data, int width, int height, int channels, int low_threshold, int high_threshold, int blur_kernel_size = 5);
 
+    // Native bilinear resizer
+    static std::vector<uint8_t> resize(const unsigned char* data, int width, int height, int channels, int new_width, int new_height);
+
 private:
     static std::vector<uint8_t> grayscale(const unsigned char* data, int width, int height, int channels);
     static std::vector<uint8_t> gaussian_blur(const std::vector<uint8_t>& image, int width, int height, int kernel_size);

@@ -58,17 +58,32 @@ int main() {
         }
 
         if (needs_conversion) {
-            // Resize to max 2048x2048, maintaining aspect ratio. 
-            // The '>' flag means "only shrink if larger than dimensions".
-            std::string cmd = "magick " + upload_filename + " -resize '2048x2048>' -strip " + converted_filename;
-            int ret = std::system(cmd.c_str());
-            
-            if (ret == 0) {
+            // Native C++ resizing
+            unsigned char* raw_data = stbi_load(upload_filename.c_str(), &width, &height, &channels, 0);
+            if (raw_data) {
+                int new_width = width, new_height = height;
+                if (width > 2048 || height > 2048) {
+                    float ratio = std::min(2048.0f / width, 2048.0f / height);
+                    new_width = (int)(width * ratio);
+                    new_height = (int)(height * ratio);
+                }
+                
+                auto resized = EdgeDetector::resize(raw_data, width, height, channels, new_width, new_height);
+                stbi_image_free(raw_data);
+                
+                // Save to temp_processed.png for the next steps (or refactor to use buffer directly)
+                stbi_write_png(converted_filename.c_str(), new_width, new_height, channels, resized.data(), new_width * channels);
                 target_file = converted_filename;
             } else {
-                res.status = 400;
-                res.set_content("Image conversion/resizing failed", "text/plain");
-                return;
+                // Fallback to magick if stbi still can't load it (e.g. specialized WebP/HEIC)
+                std::string cmd = "magick " + upload_filename + " -resize '2048x2048>' -strip " + converted_filename;
+                if (std::system(cmd.c_str()) == 0) {
+                    target_file = converted_filename;
+                } else {
+                    res.status = 400;
+                    res.set_content("Image conversion/resizing failed", "text/plain");
+                    return;
+                }
             }
         }
 

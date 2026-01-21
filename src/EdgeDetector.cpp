@@ -49,6 +49,36 @@ std::vector<Point> EdgeDetector::detect_edges_from_memory(const unsigned char* d
     return bridge_gaps(edges, width, height, 10);
 }
 
+std::vector<uint8_t> EdgeDetector::resize(const unsigned char* data, int width, int height, int channels, int new_width, int new_height) {
+    std::vector<uint8_t> resized(new_width * new_height * channels);
+    float x_ratio = (float)(width - 1) / new_width;
+    float y_ratio = (float)(height - 1) / new_height;
+
+    Utils::parallel_for(0, new_height, [&](int i) {
+        for (int j = 0; j < new_width; ++j) {
+            int x = (int)(x_ratio * j);
+            int y = (int)(y_ratio * i);
+            float x_diff = (x_ratio * j) - x;
+            float y_diff = (y_ratio * i) - y;
+
+            for (int c = 0; j < new_width && c < channels; ++c) {
+                uint8_t a = data[(y * width + x) * channels + c];
+                uint8_t b = data[(y * width + x + 1) * channels + c];
+                uint8_t d = data[((y + 1) * width + x) * channels + c];
+                uint8_t e = data[((y + 1) * width + x + 1) * channels + c];
+
+                float val = a * (1 - x_diff) * (1 - y_diff) +
+                            b * (x_diff) * (1 - y_diff) +
+                            d * (y_diff) * (1 - x_diff) +
+                            e * (x_diff * y_diff);
+
+                resized[(i * new_width + j) * channels + c] = (uint8_t)val;
+            }
+        }
+    });
+    return resized;
+}
+
 std::vector<uint8_t> EdgeDetector::grayscale(const unsigned char* data, int width, int height, int channels) {
     std::vector<uint8_t> gray(width * height);
     // Parallelize grayscale conversion
@@ -170,22 +200,36 @@ std::vector<uint8_t> EdgeDetector::non_max_suppression(const std::vector<float>&
 
 std::vector<Point> EdgeDetector::hysteresis(const std::vector<uint8_t>& image, int width, int height, int low, int high) {
     std::vector<Point> edges;
-    std::vector<bool> visited(width * height, false);
-    std::stack<Point> stack;
+    std::vector<uint8_t> visited(width * height, 0);
+    std::mutex edges_mutex;
+    std::vector<Point> strong_seeds;
 
-    // Identify strong edges and push to stack
-    for (int y = 1; y < height - 1; ++y) {
+    // Parallel seed finding
+    Utils::parallel_for(1, height - 1, [&](int y) {
+        std::vector<Point> local_seeds;
         for (int x = 1; x < width - 1; ++x) {
             int idx = y * width + x;
-            if (image[idx] >= high && !visited[idx]) {
-                stack.push({x, y});
-                visited[idx] = true;
-                edges.push_back({x, y});
+            if (image[idx] >= high) {
+                local_seeds.push_back({x, y});
             }
+        }
+        if (!local_seeds.empty()) {
+            std::lock_guard<std::mutex> lock(edges_mutex);
+            strong_seeds.insert(strong_seeds.end(), local_seeds.begin(), local_seeds.end());
+        }
+    });
+
+    std::stack<Point> stack;
+    for (const auto& p : strong_seeds) {
+        int idx = p.y * width + p.x;
+        if (!visited[idx]) {
+            stack.push(p);
+            visited[idx] = 1;
+            edges.push_back(p);
         }
     }
 
-    // Connect weak edges
+    // Connect weak edges (Flood fill)
     while (!stack.empty()) {
         Point p = stack.top();
         stack.pop();
