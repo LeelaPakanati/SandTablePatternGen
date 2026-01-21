@@ -1,4 +1,5 @@
 let currentThrContent = "";
+let currentPngUrl = "";
 let abortController = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -138,6 +139,7 @@ async function processImage() {
         
         const data = await response.json();
         currentThrContent = data.thr;
+        currentPngUrl = data.png_url;
         
         // Draw views
         const size = Math.max(data.width, data.height);
@@ -243,34 +245,58 @@ async function uploadToTable() {
 
     const uploadBtn = document.getElementById('uploadBtn');
     uploadBtn.disabled = true;
-    updateStatus("Uploading...", `Sending pattern to ${tableIp}...`);
+    updateStatus("Uploading...", `Sending files to ${tableIp}...`);
 
     const imageInput = document.getElementById('imageInput');
-    let filename = "generated_pattern.thr";
+    let baseFilename = "generated_pattern";
     if (imageInput.files[0]) {
         const originalName = imageInput.files[0].name;
-        filename = originalName.substring(0, originalName.lastIndexOf('.')) + ".thr";
+        baseFilename = originalName.substring(0, originalName.lastIndexOf('.'));
     }
 
-    const formData = new FormData();
-    const blob = new Blob([currentThrContent], { type: 'text/plain' });
-    formData.append('file', blob, filename);
-
     try {
-        const response = await fetch(`http://${tableIp}/api/files/upload`, {
+        // 1. Upload THR
+        updateStatus("Uploading...", `Uploading ${baseFilename}.thr...`);
+        const thrFormData = new FormData();
+        const thrBlob = new Blob([currentThrContent], { type: 'text/plain' });
+        thrFormData.append('file', thrBlob, baseFilename + ".thr");
+
+        const thrResponse = await fetch(`http://${tableIp}/api/files/upload`, {
             method: 'POST',
-            body: formData,
+            body: thrFormData,
             mode: 'cors'
         });
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        if (!thrResponse.ok) throw new Error(`THR Upload Failed: ${thrResponse.status}`);
 
-        updateStatus("Upload Complete!", `Successfully uploaded ${filename} to table.`);
-        alert(`Successfully uploaded ${filename} to table!`);
+        // 2. Upload PNG (if available)
+        if (currentPngUrl) {
+            updateStatus("Uploading...", `Uploading ${baseFilename}.png preview...`);
+            
+            // Fetch the PNG from our server first
+            const pngResponse = await fetch(currentPngUrl);
+            const pngBlob = await pngResponse.blob();
+            
+            const pngFormData = new FormData();
+            pngFormData.append('file', pngBlob, baseFilename + ".png");
+
+            const tablePngResponse = await fetch(`http://${tableIp}/api/files/upload`, {
+                method: 'POST',
+                body: pngFormData,
+                mode: 'cors'
+            });
+
+            if (!tablePngResponse.ok) {
+                console.warn("PNG preview upload failed, but THR was successful.");
+            }
+        }
+
+        updateStatus("Upload Complete!", `Successfully uploaded files to table.`);
+        alert(`Successfully uploaded pattern and preview to table!`);
     } catch (e) {
         console.error("Upload failed", e);
         updateStatus("Upload Failed", e.message);
-        alert("Upload failed: " + e.message + "\n\nNote: If this is a CORS error, you might need to enable CORS on the Sisyphus Table firmware.");
+        alert("Upload failed: " + e.message);
     } finally {
         uploadBtn.disabled = false;
     }

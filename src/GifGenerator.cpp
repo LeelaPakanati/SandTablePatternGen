@@ -113,15 +113,41 @@ void GifGenerator::generate_png(const std::vector<Point>& points, int width, int
     int max_dim = std::max(width, height);
     double scale = (double)png_size / max_dim;
     
-    std::vector<uint8_t> image(png_size * png_size * 4);
+    // Initialize background to Transparent
+    std::vector<uint8_t> image(png_size * png_size * 4, 0);
     
-    // Initialize background to Dark Sand Color
-    for (int i = 0; i < png_size * png_size; ++i) {
-        image[i * 4] = 50;      // R
-        image[i * 4 + 1] = 40;  // G
-        image[i * 4 + 2] = 30;  // B
-        image[i * 4 + 3] = 255; // A
+    int offset_x = (png_size - (int)(width * scale)) / 2;
+    int offset_y = (png_size - (int)(height * scale)) / 2;
+    
+    Point prev = {
+        static_cast<int>(points[0].x * scale) + offset_x, 
+        static_cast<int>(points[0].y * scale) + offset_y
+    };
+
+    // White lines
+    uint8_t tr = 255, tg = 255, tb = 255;
+
+    for (size_t i = 1; i < points.size(); ++i) {
+        Point curr = {
+            static_cast<int>(points[i].x * scale) + offset_x, 
+            static_cast<int>(points[i].y * scale) + offset_y
+        };
+
+        draw_line(image, png_size, png_size, prev, curr, tr, tg, tb);
+        prev = curr;
     }
+
+    stbi_write_png(output_filename.c_str(), png_size, png_size, 4, image.data(), png_size * 4);
+}
+
+void GifGenerator::generate_gradient_png(const std::vector<Point>& points, int width, int height, const std::string& output_filename) {
+    if (points.empty()) return;
+
+    int png_size = 512;
+    int max_dim = std::max(width, height);
+    double scale = (double)png_size / max_dim;
+    
+    std::vector<uint8_t> image(png_size * png_size * 4, 0); // Transparent background
 
     int offset_x = (png_size - (int)(width * scale)) / 2;
     int offset_y = (png_size - (int)(height * scale)) / 2;
@@ -131,16 +157,19 @@ void GifGenerator::generate_png(const std::vector<Point>& points, int width, int
         static_cast<int>(points[0].y * scale) + offset_y
     };
 
-    // Track color (Light Sand)
-    uint8_t tr = 230, tg = 220, tb = 200;
-
-    for (size_t i = 1; i < points.size(); ++i) {
+    size_t n = points.size();
+    for (size_t i = 1; i < n; ++i) {
         Point curr = {
             static_cast<int>(points[i].x * scale) + offset_x, 
             static_cast<int>(points[i].y * scale) + offset_y
         };
 
-        draw_line(image, png_size, png_size, prev, curr, tr, tg, tb);
+        // Blue (0,0,255) -> Red (255,0,0)
+        uint8_t r = static_cast<uint8_t>((static_cast<double>(i) / n) * 255);
+        uint8_t b = 255 - r;
+        uint8_t g = 0;
+
+        draw_line(image, png_size, png_size, prev, curr, r, g, b);
         prev = curr;
     }
 

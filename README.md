@@ -33,6 +33,8 @@ A high-performance C++ tool for generating Sisyphus kinetic sand table tracks fr
 | :---: | :---: | :---: |
 | ![Original](docs/images/shapes.png) | ![Path](docs/images/shapes_path.png) | ![Simulation](docs/images/shapes.gif) |
 
+*Path visualization uses a gradient (Blue $\to$ Red) to indicate drawing order.*
+
 ## Build Instructions
 
 ### Prerequisites

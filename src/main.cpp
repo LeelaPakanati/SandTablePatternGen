@@ -89,15 +89,22 @@ int main() {
 
         // Generate GIF
         std::time_t t = std::time(nullptr);
-        std::string gif_name = "sim_" + std::to_string(t) + ".gif";
-        std::string gif_filename = "static/" + gif_name;
+        std::string base_name = "sim_" + std::to_string(t);
+        std::string gif_filename = "static/" + base_name + ".gif";
         GifGenerator::generate_gif(path, width, height, gif_filename);
         std::cout << "Generated GIF: " << gif_filename << std::endl;
+
+        // Generate PNG
+        std::string png_name = base_name + ".png";
+        std::string png_filename = "static/" + png_name;
+        GifGenerator::generate_png(path, width, height, png_filename);
+        std::cout << "Generated PNG: " << png_filename << std::endl;
 
         // JSON response
         json response;
         response["thr"] = thr_content;
-        response["gif_url"] = "/" + gif_name; 
+        response["gif_url"] = "/" + base_name + ".gif"; 
+        response["png_url"] = "/" + base_name + ".png";
         
         // Raw edges
         std::vector<std::vector<int>> edges_preview;
