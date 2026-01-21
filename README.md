@@ -21,13 +21,15 @@ A high-performance C++ tool for generating Sisyphus kinetic sand table tracks fr
     -   Automatically resizes extremely large images to manageable dimensions while preserving aspect ratio.
     -   Masks image borders to prevent "frame" detection artifacts.
 
-## Example
+## Examples
 
-Here is an example of a generated track simulation (Steel ball on Sand):
+### Simple Shapes
+![Simple Example](docs/images/example.gif)
 
-![Example Simulation](docs/images/example.gif)
+### Intricate Patterns (Butterfly)
+![Complex Example](docs/images/complex_example.gif)
 
-*Input: Simple geometric shapes. Output: Continuous polar path.*
+*Top: Geometric shapes. Bottom: Intricate natural patterns.*
 
 ## Build
 

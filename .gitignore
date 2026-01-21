@@ -10,9 +10,6 @@ cmake-build-debug/
 temp_upload*
 temp_processed*
 
-# Test data
-tests/images/
-
 # System
 .DS_Store
 Thumbs.db
