@@ -120,6 +120,10 @@ async function processImage() {
     
     updateStatus("Uploading...", "Sending image to server...");
 
+    // Setup AbortController
+    abortController = new AbortController();
+    const signal = abortController.signal;
+
     const formData = new FormData();
     formData.append('image', input.files[0]);
     formData.append('low_threshold', document.getElementById('low').value);
@@ -145,7 +149,11 @@ async function processImage() {
 
             xhr.onload = () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve(JSON.parse(xhr.responseText));
+                    try {
+                        resolve(JSON.parse(xhr.responseText));
+                    } catch(e) {
+                        reject(new Error("Invalid server response"));
+                    }
                 } else {
                     reject(new Error(xhr.responseText || `Server returned ${xhr.status}`));
                 }
@@ -154,9 +162,7 @@ async function processImage() {
             xhr.onerror = () => reject(new Error("Network error"));
             xhr.onabort = () => reject(new Error("AbortError"));
 
-            abortController = {
-                abort: () => xhr.abort()
-            };
+            signal.addEventListener('abort', () => xhr.abort());
 
             xhr.send(formData);
         });
