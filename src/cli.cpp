@@ -43,6 +43,23 @@ std::vector<Point> parse_thr(const std::string& filename, int width, int height)
     return points;
 }
 
+// Helper to draw points to PNG (solid white, transparent background)
+void write_points_png(const std::vector<Point>& points, int width, int height, const std::string& out_path) {
+    std::vector<uint8_t> image(width * height * 4, 0); // RGBA, transparent background
+
+    for (const auto& p : points) {
+        if (p.x >= 0 && p.x < width && p.y >= 0 && p.y < height) {
+            int idx = (p.y * width + p.x) * 4;
+            image[idx] = 255;   // R
+            image[idx+1] = 255; // G
+            image[idx+2] = 255; // B
+            image[idx+3] = 255; // A
+        }
+    }
+
+    stbi_write_png(out_path.c_str(), width, height, 4, image.data(), width * 4);
+}
+
 // Helper to draw path to PNG (solid white, transparent background)
 void write_path_png(const std::vector<Point>& points, int width, int height, const std::string& out_path) {
     std::vector<uint8_t> image(width * height * 4, 0); // RGBA, transparent background
@@ -89,7 +106,8 @@ void print_usage(const char* name) {
     std::cout << "      --gif <file>   Generate visualization GIF\n";
     std::cout << "      --png <file>   Generate static path image (sand style)\n";
     std::cout << "      --grad <file>  Generate static path image (gradient style)\n";
-    std::cout << "      --path <file>  Generate static path image (white on transparent)\n\n";
+    std::cout << "      --path <file>  Generate static path image (white on transparent)\n";
+    std::cout << "      --edges <file> Generate static edge image (white on transparent)\n\n";
     
     std::cout << "  Visualize THR file:\n";
     std::cout << "    " << name << " vis <input_thr> [options]\n";
@@ -98,6 +116,7 @@ void print_usage(const char* name) {
     std::cout << "      --png <file>   Output PNG filename (sand style)\n";
     std::cout << "      --grad <file>  Output PNG filename (gradient style)\n";
     std::cout << "      --path <file>  Output PNG filename (white on transparent)\n";
+    std::cout << "      --edges <file> Output PNG filename (edge points style)\n";
     std::cout << "      --size <int>   Resolution (default 1024)\n";
 }
 
@@ -117,7 +136,7 @@ int main(int argc, char** argv) {
         }
         std::string output_thr = argv[3];
         int low = 50, high = 150, blur = 5;
-        std::string gif_out, png_out, grad_out, path_out;
+        std::string gif_out, png_out, grad_out, path_out, edges_out;
 
         for (int i = 4; i < argc; ++i) {
             std::string arg = argv[i];
@@ -128,6 +147,7 @@ int main(int argc, char** argv) {
             else if (arg == "--png" && i+1 < argc) png_out = argv[++i];
             else if (arg == "--grad" && i+1 < argc) grad_out = argv[++i];
             else if (arg == "--path" && i+1 < argc) path_out = argv[++i];
+            else if (arg == "--edges" && i+1 < argc) edges_out = argv[++i];
         }
 
         // Load Image
@@ -147,6 +167,11 @@ int main(int argc, char** argv) {
         auto edges = EdgeDetector::detect_edges(input_file, low, high, blur);
         if (edges.empty()) {
             std::cerr << "Warning: No edges detected.\n";
+        }
+
+        if (!edges_out.empty()) {
+            write_points_png(edges, width, height, edges_out);
+            std::cout << "Wrote Edges PNG to " << edges_out << std::endl;
         }
         
         auto path = PathPlanner::plan_path(edges, width, height);
@@ -175,7 +200,7 @@ int main(int argc, char** argv) {
         }
 
     } else if (mode == "vis") {
-        std::string gif_out, png_out, grad_out, path_out;
+        std::string gif_out, png_out, grad_out, path_out, edges_out;
         int size = 1024;
 
         for (int i = 3; i < argc; ++i) {
@@ -184,11 +209,12 @@ int main(int argc, char** argv) {
             else if (arg == "--png" && i+1 < argc) png_out = argv[++i];
             else if (arg == "--grad" && i+1 < argc) grad_out = argv[++i];
             else if (arg == "--path" && i+1 < argc) path_out = argv[++i];
+            else if (arg == "--edges" && i+1 < argc) edges_out = argv[++i];
             else if (arg == "--size" && i+1 < argc) size = std::stoi(argv[++i]);
         }
 
-        if (gif_out.empty() && png_out.empty() && grad_out.empty() && path_out.empty()) {
-            std::cerr << "Error: Specify at least one output format (--gif, --png, --grad, or --path)\n";
+        if (gif_out.empty() && png_out.empty() && grad_out.empty() && path_out.empty() && edges_out.empty()) {
+            std::cerr << "Error: Specify at least one output format (--gif, --png, --grad, --path, or --edges)\n";
             return 1;
         }
 
@@ -210,6 +236,10 @@ int main(int argc, char** argv) {
         if (!path_out.empty()) {
             write_path_png(path, size, size, path_out);
             std::cout << "Wrote Path PNG to " << path_out << std::endl;
+        }
+        if (!edges_out.empty()) {
+            write_points_png(path, size, size, edges_out);
+            std::cout << "Wrote Edges PNG to " << edges_out << std::endl;
         }
 
     } else {

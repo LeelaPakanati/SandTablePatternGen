@@ -24,14 +24,14 @@ A high-performance C++ tool for generating Sisyphus kinetic sand table tracks fr
 ## Examples
 
 ### Intricate Natural Patterns (Butterfly)
-| Original Image | Processed Path | Sand Table Simulation |
-| :---: | :---: | :---: |
-| ![Original](docs/images/butterfly.jpg) | ![Path](docs/images/butterfly_path.png) | ![Simulation](docs/images/butterfly.gif) |
+| Original Image | Detected Edges | Processed Path | Sand Table Simulation |
+| :---: | :---: | :---: | :---: |
+| ![Original](docs/images/butterfly.jpg) | ![Edges](docs/images/butterfly_edges.png) | ![Path](docs/images/butterfly_path.png) | ![Simulation](docs/images/butterfly.gif) |
 
 ### Geometric Shapes
-| Original Image | Processed Path | Sand Table Simulation |
-| :---: | :---: | :---: |
-| ![Original](docs/images/shapes.png) | ![Path](docs/images/shapes_path.png) | ![Simulation](docs/images/shapes.gif) |
+| Original Image | Detected Edges | Processed Path | Sand Table Simulation |
+| :---: | :---: | :---: | :---: |
+| ![Original](docs/images/shapes.png) | ![Edges](docs/images/shapes_edges.png) | ![Path](docs/images/shapes_path.png) | ![Simulation](docs/images/shapes.gif) |
 
 ## Build Instructions
 
