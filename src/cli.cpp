@@ -33,10 +33,9 @@ std::vector<Point> parse_thr(const std::string& filename, int width, int height)
         double theta, rho;
         if (ss >> theta >> rho) {
             // Convert back to Cartesian for visualization
-            // x = cx + rho * max_r * cos(theta)
-            // y = cy - rho * max_r * sin(theta) (inverted Y)
+            // Standard polar: match SisyphusTable convention
             int x = static_cast<int>(cx + rho * max_radius * std::cos(theta));
-            int y = static_cast<int>(cy - rho * max_radius * std::sin(theta));
+            int y = static_cast<int>(cy + rho * max_radius * std::sin(theta));
             points.push_back({x, y});
         }
     }

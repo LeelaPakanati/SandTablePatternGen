@@ -28,8 +28,9 @@ std::vector<ThrPoint> ThrGenerator::generate_thr(const std::vector<Point>& point
         double rho = std::sqrt(dx * dx + dy * dy) / max_radius;
         rho = std::min(1.0, std::max(0.0, rho));
 
-        // Note: -dy because y-axis is inverted in images (top-left is 0,0)
-        double theta = std::atan2(-dy, dx);
+        // Standard polar: match SisyphusTable convention
+        // Image Y increases downward, which matches canvas Y in the viewer
+        double theta = std::atan2(dy, dx);
 
         if (!first) {
             while (theta - prev_theta > PI) theta -= 2 * PI;
