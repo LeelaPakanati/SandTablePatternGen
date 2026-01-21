@@ -33,6 +33,16 @@ A high-performance C++ tool for generating Sisyphus kinetic sand table tracks fr
 | :---: | :---: | :---: | :---: |
 | ![Original](docs/images/shapes.png) | ![Edges](docs/images/shapes_edges.png) | ![Path](docs/images/shapes_path.png) | ![Simulation](docs/images/shapes.gif) |
 
+### Landmark Architecture (Taj Mahal)
+| Original Image | Detected Edges | Processed Path | Sand Table Simulation |
+| :---: | :---: | :---: | :---: |
+| ![Original](docs/images/taj_mahal.jpg) | ![Edges](docs/images/taj_mahal_edges.png) | ![Path](docs/images/taj_mahal_path.png) | ![Simulation](docs/images/taj_mahal.gif) |
+
+### Detailed Portraits (David)
+| Original Image | Detected Edges | Processed Path | Sand Table Simulation |
+| :---: | :---: | :---: | :---: |
+| ![Original](docs/images/david.webp) | ![Edges](docs/images/david_edges.png) | ![Path](docs/images/david_path.png) | ![Simulation](docs/images/david.gif) |
+
 ## Build Instructions
 
 ### Prerequisites

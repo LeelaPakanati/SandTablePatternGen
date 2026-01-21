@@ -116,6 +116,10 @@ int main(int argc, char** argv) {
              std::string cmd = "magick " + input_file + " -strip " + temp;
              if (std::system(cmd.c_str()) == 0) {
                  input_file = temp;
+                 if (stbi_info(input_file.c_str(), &width, &height, &channels) == 0) {
+                     std::cerr << "Error: Could not load converted image " << input_file << std::endl;
+                     return 1;
+                 }
              } else {
                  std::cerr << "Error: Could not load image " << input_file << std::endl;
                  return 1;
