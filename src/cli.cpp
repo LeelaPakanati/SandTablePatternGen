@@ -43,6 +43,41 @@ std::vector<Point> parse_thr(const std::string& filename, int width, int height)
     return points;
 }
 
+// Helper to draw path to PNG (solid white, transparent background)
+void write_path_png(const std::vector<Point>& points, int width, int height, const std::string& out_path) {
+    std::vector<uint8_t> image(width * height * 4, 0); // RGBA, transparent background
+
+    if (points.empty()) return;
+
+    for (size_t i = 0; i < points.size() - 1; ++i) {
+        Point p0 = points[i];
+        Point p1 = points[i+1];
+        
+        // Bresenham line
+        int x0 = p0.x, y0 = p0.y;
+        int x1 = p1.x, y1 = p1.y;
+        int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        int dy = -std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy, e2;
+
+        while (true) {
+            if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
+                int idx = (y0 * width + x0) * 4;
+                image[idx] = 255;   // R
+                image[idx+1] = 255; // G
+                image[idx+2] = 255; // B
+                image[idx+3] = 255; // A
+            }
+            if (x0 == x1 && y0 == y1) break;
+            e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
+    }
+
+    stbi_write_png(out_path.c_str(), width, height, 4, image.data(), width * 4);
+}
+
 void print_usage(const char* name) {
     std::cout << "Usage:\n";
     std::cout << "  Generate THR from Image:\n";
@@ -53,7 +88,8 @@ void print_usage(const char* name) {
     std::cout << "      --blur <val>   Blur kernel size (default 5)\n";
     std::cout << "      --gif <file>   Generate visualization GIF\n";
     std::cout << "      --png <file>   Generate static path image (sand style)\n";
-    std::cout << "      --grad <file>  Generate static path image (gradient style)\n\n";
+    std::cout << "      --grad <file>  Generate static path image (gradient style)\n";
+    std::cout << "      --path <file>  Generate static path image (white on transparent)\n\n";
     
     std::cout << "  Visualize THR file:\n";
     std::cout << "    " << name << " vis <input_thr> [options]\n";
@@ -61,6 +97,7 @@ void print_usage(const char* name) {
     std::cout << "      --gif <file>   Output GIF filename\n";
     std::cout << "      --png <file>   Output PNG filename (sand style)\n";
     std::cout << "      --grad <file>  Output PNG filename (gradient style)\n";
+    std::cout << "      --path <file>  Output PNG filename (white on transparent)\n";
     std::cout << "      --size <int>   Resolution (default 1024)\n";
 }
 
@@ -80,7 +117,7 @@ int main(int argc, char** argv) {
         }
         std::string output_thr = argv[3];
         int low = 50, high = 150, blur = 5;
-        std::string gif_out, png_out, grad_out;
+        std::string gif_out, png_out, grad_out, path_out;
 
         for (int i = 4; i < argc; ++i) {
             std::string arg = argv[i];
@@ -90,6 +127,7 @@ int main(int argc, char** argv) {
             else if (arg == "--gif" && i+1 < argc) gif_out = argv[++i];
             else if (arg == "--png" && i+1 < argc) png_out = argv[++i];
             else if (arg == "--grad" && i+1 < argc) grad_out = argv[++i];
+            else if (arg == "--path" && i+1 < argc) path_out = argv[++i];
         }
 
         // Load Image
@@ -131,9 +169,13 @@ int main(int argc, char** argv) {
             GifGenerator::generate_gradient_png(path, width, height, grad_out);
             std::cout << "Wrote Gradient PNG to " << grad_out << std::endl;
         }
+        if (!path_out.empty()) {
+            write_path_png(path, width, height, path_out);
+            std::cout << "Wrote Path PNG to " << path_out << std::endl;
+        }
 
     } else if (mode == "vis") {
-        std::string gif_out, png_out, grad_out;
+        std::string gif_out, png_out, grad_out, path_out;
         int size = 1024;
 
         for (int i = 3; i < argc; ++i) {
@@ -141,11 +183,12 @@ int main(int argc, char** argv) {
             if (arg == "--gif" && i+1 < argc) gif_out = argv[++i];
             else if (arg == "--png" && i+1 < argc) png_out = argv[++i];
             else if (arg == "--grad" && i+1 < argc) grad_out = argv[++i];
+            else if (arg == "--path" && i+1 < argc) path_out = argv[++i];
             else if (arg == "--size" && i+1 < argc) size = std::stoi(argv[++i]);
         }
 
-        if (gif_out.empty() && png_out.empty() && grad_out.empty()) {
-            std::cerr << "Error: Specify at least one output format (--gif, --png, or --grad)\n";
+        if (gif_out.empty() && png_out.empty() && grad_out.empty() && path_out.empty()) {
+            std::cerr << "Error: Specify at least one output format (--gif, --png, --grad, or --path)\n";
             return 1;
         }
 
@@ -163,6 +206,10 @@ int main(int argc, char** argv) {
         if (!grad_out.empty()) {
             GifGenerator::generate_gradient_png(path, size, size, grad_out);
             std::cout << "Wrote Gradient PNG to " << grad_out << std::endl;
+        }
+        if (!path_out.empty()) {
+            write_path_png(path, size, size, path_out);
+            std::cout << "Wrote Path PNG to " << path_out << std::endl;
         }
 
     } else {
