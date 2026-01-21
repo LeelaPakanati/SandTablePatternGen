@@ -92,6 +92,8 @@ function stopProcessing() {
 
 function cleanupUI() {
     document.getElementById('loadingSpinner').classList.add('hidden');
+    document.getElementById('progressContainer').classList.add('hidden');
+    document.getElementById('progressBar').style.width = '0%';
     document.getElementById('stopBtn').classList.add('hidden');
     document.getElementById('processBtn').disabled = false;
 }
@@ -107,18 +109,16 @@ async function processImage() {
     const gifOutput = document.getElementById('gifOutput');
     const stopBtn = document.getElementById('stopBtn');
     const spinner = document.getElementById('loadingSpinner');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
     
     // UI Reset
     processBtn.disabled = true;
     stopBtn.classList.remove('hidden');
-    spinner.classList.remove('hidden');
+    progressContainer.classList.remove('hidden');
     gifOutput.classList.add('hidden');
     
-    updateStatus("Processing...", "Sending to server and analyzing image...");
-
-    // Setup AbortController
-    abortController = new AbortController();
-    const signal = abortController.signal;
+    updateStatus("Uploading...", "Sending image to server...");
 
     const formData = new FormData();
     formData.append('image', input.files[0]);
@@ -127,17 +127,42 @@ async function processImage() {
     formData.append('blur', document.getElementById('blur').value);
 
     try {
-        const response = await fetch('/process', {
-            method: 'POST',
-            body: formData,
-            signal: signal
-        });
+        const data = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/process');
+            
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percent + '%';
+                    if (percent >= 100) {
+                        updateStatus("Processing...", "Server is analyzing image and generating path...");
+                        spinner.classList.remove('hidden');
+                        progressContainer.classList.add('hidden');
+                    }
+                }
+            };
 
-        if (!response.ok) throw new Error(await response.text());
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(JSON.parse(xhr.responseText));
+                } else {
+                    reject(new Error(xhr.responseText || `Server returned ${xhr.status}`));
+                }
+            };
+
+            xhr.onerror = () => reject(new Error("Network error"));
+            xhr.onabort = () => reject(new Error("AbortError"));
+
+            abortController = {
+                abort: () => xhr.abort()
+            };
+
+            xhr.send(formData);
+        });
 
         updateStatus("Finalizing...", "Generating visualization and animation...");
         
-        const data = await response.json();
         currentThrContent = data.thr;
         currentPngUrl = data.png_url;
         
