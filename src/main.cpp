@@ -94,11 +94,11 @@ int main() {
         GifGenerator::generate_gif(path, width, height, gif_filename);
         std::cout << "Generated GIF: " << gif_filename << std::endl;
 
-        // Generate PNG
+        // Generate PNG (Gradient style for direction)
         std::string png_name = base_name + ".png";
         std::string png_filename = "static/" + png_name;
-        GifGenerator::generate_png(path, width, height, png_filename);
-        std::cout << "Generated PNG: " << png_filename << std::endl;
+        GifGenerator::generate_gradient_png(path, width, height, png_filename);
+        std::cout << "Generated Gradient PNG: " << png_filename << std::endl;
 
         // JSON response
         json response;
