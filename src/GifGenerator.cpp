@@ -1,5 +1,6 @@
 #include "GifGenerator.h"
 #include "gif.h"
+#include "stb_image_write.h"
 #include <cmath>
 #include <algorithm>
 #include <iostream>
@@ -103,4 +104,45 @@ void GifGenerator::draw_line(std::vector<uint8_t>& image, int width, int height,
         if (e2 >= dy) { err += dy; x0 += sx; }
         if (e2 <= dx) { err += dx; y0 += sy; }
     }
+}
+
+void GifGenerator::generate_png(const std::vector<Point>& points, int width, int height, const std::string& output_filename) {
+    if (points.empty()) return;
+
+    int png_size = 512;
+    int max_dim = std::max(width, height);
+    double scale = (double)png_size / max_dim;
+    
+    std::vector<uint8_t> image(png_size * png_size * 4);
+    
+    // Initialize background to Dark Sand Color
+    for (int i = 0; i < png_size * png_size; ++i) {
+        image[i * 4] = 50;      // R
+        image[i * 4 + 1] = 40;  // G
+        image[i * 4 + 2] = 30;  // B
+        image[i * 4 + 3] = 255; // A
+    }
+
+    int offset_x = (png_size - (int)(width * scale)) / 2;
+    int offset_y = (png_size - (int)(height * scale)) / 2;
+    
+    Point prev = {
+        static_cast<int>(points[0].x * scale) + offset_x, 
+        static_cast<int>(points[0].y * scale) + offset_y
+    };
+
+    // Track color (Light Sand)
+    uint8_t tr = 230, tg = 220, tb = 200;
+
+    for (size_t i = 1; i < points.size(); ++i) {
+        Point curr = {
+            static_cast<int>(points[i].x * scale) + offset_x, 
+            static_cast<int>(points[i].y * scale) + offset_y
+        };
+
+        draw_line(image, png_size, png_size, prev, curr, tr, tg, tb);
+        prev = curr;
+    }
+
+    stbi_write_png(output_filename.c_str(), png_size, png_size, 4, image.data(), png_size * 4);
 }

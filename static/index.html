@@ -122,9 +122,17 @@
                     <div id="statsArea" class="stats hidden">
                         <span id="pointCount">0</span> points
                     </div>
-                    <button id="downloadBtn" onclick="downloadThr()" disabled class="primary-btn download-btn-full">
-                        <span>📥</span> Download .thr file
-                    </button>
+                    <div class="action-buttons">
+                        <button id="downloadBtn" onclick="downloadThr()" disabled class="primary-btn download-btn">
+                            <span>📥</span> Download .thr
+                        </button>
+                        <div class="upload-group">
+                            <input type="text" id="tableIp" placeholder="Table IP (e.g. 192.168.1.100)" value="sisyphus.local">
+                            <button id="uploadBtn" onclick="uploadToTable()" disabled class="primary-btn upload-btn">
+                                <span>🚀</span> Upload to Table
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="loadingOverlay" class="hidden">

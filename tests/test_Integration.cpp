@@ -56,25 +56,28 @@ TEST_CASE("Integration::Shapes") {
 }
 
 TEST_CASE("Integration::Butterfly") {
-    test_image_pipeline("../tests/images/butterfly.jpg", 50, 150, 3);
+    test_image_pipeline("../tests/images/butterfly.jpg", 40, 120, 5);
 }
 
 TEST_CASE("Integration::Baboon") {
-    test_image_pipeline("../tests/images/baboon.jpg", 50, 150, 5);
+    // Tuned for cleaner features
+    test_image_pipeline("../tests/images/baboon.jpg", 80, 200, 7);
 }
 
 TEST_CASE("Integration::TajMahal") {
-    test_image_pipeline("../tests/images/taj_mahal.jpg", 50, 150, 5);
+    // Tuned for clear structural outlines
+    test_image_pipeline("../tests/images/taj_mahal.jpg", 70, 180, 7);
 }
 
 TEST_CASE("Integration::Nature") {
-    test_image_pipeline("../tests/images/nature.jpg", 30, 100, 5);
+    test_image_pipeline("../tests/images/nature.jpg", 50, 150, 7);
 }
 
 TEST_CASE("Integration::City") {
-    test_image_pipeline("../tests/images/city.jpg", 50, 150, 3);
+    // Very high detail, needs high thresholds to avoid noise explosion
+    test_image_pipeline("../tests/images/city.jpg", 100, 220, 9);
 }
 
 TEST_CASE("Integration::Sketch") {
-    test_image_pipeline("../tests/images/sketch.jpg", 50, 150, 3);
+    test_image_pipeline("../tests/images/sketch.jpg", 40, 120, 5);
 }

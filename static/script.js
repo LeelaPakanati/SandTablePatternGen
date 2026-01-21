@@ -154,6 +154,8 @@ async function processImage() {
 
         const downloadBtn = document.getElementById('downloadBtn');
         downloadBtn.disabled = false;
+        const uploadBtn = document.getElementById('uploadBtn');
+        uploadBtn.disabled = false;
 
         updateStatus("Success!", `Processed at ${data.width}x${data.height}. Generated ${data.preview.length} points.`);
 
@@ -228,4 +230,48 @@ function downloadThr() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+async function uploadToTable() {
+    if (!currentThrContent) return;
+    
+    const tableIp = document.getElementById('tableIp').value.trim();
+    if (!tableIp) {
+        alert("Please enter the Table IP address");
+        return;
+    }
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    uploadBtn.disabled = true;
+    updateStatus("Uploading...", `Sending pattern to ${tableIp}...`);
+
+    const imageInput = document.getElementById('imageInput');
+    let filename = "generated_pattern.thr";
+    if (imageInput.files[0]) {
+        const originalName = imageInput.files[0].name;
+        filename = originalName.substring(0, originalName.lastIndexOf('.')) + ".thr";
+    }
+
+    const formData = new FormData();
+    const blob = new Blob([currentThrContent], { type: 'text/plain' });
+    formData.append('file', blob, filename);
+
+    try {
+        const response = await fetch(`http://${tableIp}/api/files/upload`, {
+            method: 'POST',
+            body: formData,
+            mode: 'cors'
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+
+        updateStatus("Upload Complete!", `Successfully uploaded ${filename} to table.`);
+        alert(`Successfully uploaded ${filename} to table!`);
+    } catch (e) {
+        console.error("Upload failed", e);
+        updateStatus("Upload Failed", e.message);
+        alert("Upload failed: " + e.message + "\n\nNote: If this is a CORS error, you might need to enable CORS on the Sisyphus Table firmware.");
+    } finally {
+        uploadBtn.disabled = false;
+    }
 }
