@@ -12,16 +12,9 @@ std::vector<ThrPoint> ThrGenerator::generate_thr(const std::vector<Point>& point
     double center_x = width / 2.0;
     double center_y = height / 2.0;
 
-    // Calculate max radius
-    double max_radius = 0.0;
-    for (const auto& p : points) {
-        double dx = p.x - center_x;
-        double dy = p.y - center_y;
-        double dist = std::sqrt(dx * dx + dy * dy);
-        if (dist > max_radius) {
-            max_radius = dist;
-        }
-    }
+    // Use fixed max radius based on table size (inscribed circle)
+    // This ensures perimeter paths at the edge stay at rho=1.0
+    double max_radius = std::min(width, height) / 2.0;
     if (max_radius == 0) max_radius = 1.0;
 
     std::vector<ThrPoint> polar_points;

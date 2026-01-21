@@ -29,4 +29,5 @@ private:
     static void sobel(const std::vector<uint8_t>& image, int width, int height, std::vector<float>& magnitude, std::vector<float>& angle);
     static std::vector<uint8_t> non_max_suppression(const std::vector<float>& magnitude, const std::vector<float>& angle, int width, int height);
     static std::vector<Point> hysteresis(const std::vector<uint8_t>& image, int width, int height, int low, int high);
+    static std::vector<Point> bridge_gaps(const std::vector<Point>& edges, int width, int height, int max_gap = 10);
 };

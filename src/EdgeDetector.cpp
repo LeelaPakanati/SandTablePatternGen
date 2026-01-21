@@ -45,7 +45,8 @@ std::vector<Point> EdgeDetector::detect_edges_from_memory(const unsigned char* d
         }
     }
 
-    return hysteresis(suppressed, width, height, low_threshold, high_threshold);
+    std::vector<Point> edges = hysteresis(suppressed, width, height, low_threshold, high_threshold);
+    return bridge_gaps(edges, width, height, 10);
 }
 
 std::vector<uint8_t> EdgeDetector::grayscale(const unsigned char* data, int width, int height, int channels) {
@@ -209,4 +210,94 @@ std::vector<Point> EdgeDetector::hysteresis(const std::vector<uint8_t>& image, i
     }
 
     return edges;
+}
+
+std::vector<Point> EdgeDetector::bridge_gaps(const std::vector<Point>& edges, int width, int height, int max_gap) {
+    if (edges.empty()) return edges;
+
+    // Build a grid for fast lookup
+    std::vector<uint8_t> grid(width * height, 0);
+    for (const auto& p : edges) {
+        if (p.x >= 0 && p.x < width && p.y >= 0 && p.y < height)
+            grid[p.y * width + p.x] = 1;
+    }
+
+    // Count neighbors for each edge point
+    auto count_neighbors = [&](int x, int y) -> int {
+        int count = 0;
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                if (dx == 0 && dy == 0) continue;
+                int nx = x + dx, ny = y + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    if (grid[ny * width + nx]) count++;
+                }
+            }
+        }
+        return count;
+    };
+
+    // Find endpoints (points with 1-2 neighbors indicating line ends or corners)
+    std::vector<Point> endpoints;
+    for (const auto& p : edges) {
+        int n = count_neighbors(p.x, p.y);
+        if (n <= 2) {
+            endpoints.push_back(p);
+        }
+    }
+
+    // Try to bridge nearby endpoints
+    std::vector<Point> result = edges;
+    std::vector<uint8_t> bridged(endpoints.size(), 0);
+
+    for (size_t i = 0; i < endpoints.size(); ++i) {
+        if (bridged[i]) continue;
+        const Point& p1 = endpoints[i];
+
+        double best_dist = max_gap * max_gap + 1;
+        int best_idx = -1;
+
+        for (size_t j = i + 1; j < endpoints.size(); ++j) {
+            if (bridged[j]) continue;
+            const Point& p2 = endpoints[j];
+
+            // Skip if same point or already connected (adjacent)
+            double dx = p2.x - p1.x;
+            double dy = p2.y - p1.y;
+            double dist_sq = dx * dx + dy * dy;
+
+            if (dist_sq <= 2.0) continue; // Already adjacent
+            if (dist_sq > max_gap * max_gap) continue;
+
+            if (dist_sq < best_dist) {
+                best_dist = dist_sq;
+                best_idx = j;
+            }
+        }
+
+        if (best_idx != -1) {
+            const Point& p2 = endpoints[best_idx];
+            bridged[i] = 1;
+            bridged[best_idx] = 1;
+
+            // Draw line between p1 and p2 using Bresenham
+            int x0 = p1.x, y0 = p1.y, x1 = p2.x, y1 = p2.y;
+            int sdx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+            int sdy = -std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+            int err = sdx + sdy, e2;
+
+            while (true) {
+                if (!grid[y0 * width + x0]) {
+                    result.push_back({x0, y0});
+                    grid[y0 * width + x0] = 1;
+                }
+                if (x0 == x1 && y0 == y1) break;
+                e2 = 2 * err;
+                if (e2 >= sdy) { err += sdy; x0 += sx; }
+                if (e2 <= sdx) { err += sdx; y0 += sy; }
+            }
+        }
+    }
+
+    return result;
 }

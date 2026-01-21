@@ -109,30 +109,38 @@ void GifGenerator::draw_line(std::vector<uint8_t>& image, int width, int height,
 void GifGenerator::generate_png(const std::vector<Point>& points, int width, int height, const std::string& output_filename) {
     if (points.empty()) return;
 
-    int png_size = 512;
-    int max_dim = std::max(width, height);
-    double scale = (double)png_size / max_dim;
-    
+    // Match SisyphusTable viewer: 800x800 canvas, center at 400,400, radius 380
+    const int png_size = 800;
+    const int center = 400;
+    const int radius = 380;
+
+    // Source image center and max radius (inscribed circle)
+    double src_cx = width / 2.0;
+    double src_cy = height / 2.0;
+    double src_max_r = std::min(width, height) / 2.0;
+
     // Initialize background to Transparent
     std::vector<uint8_t> image(png_size * png_size * 4, 0);
-    
-    int offset_x = (png_size - (int)(width * scale)) / 2;
-    int offset_y = (png_size - (int)(height * scale)) / 2;
-    
-    Point prev = {
-        static_cast<int>(points[0].x * scale) + offset_x, 
-        static_cast<int>(points[0].y * scale) + offset_y
+
+    // Convert source point to canvas coordinates (matching viewer's mapping)
+    auto to_canvas = [&](const Point& p) -> Point {
+        // Normalize to [-1, 1] based on inscribed circle
+        double norm_x = (p.x - src_cx) / src_max_r;
+        double norm_y = (p.y - src_cy) / src_max_r;
+        // Map to canvas: center + normalized * radius
+        return {
+            static_cast<int>(center + norm_x * radius),
+            static_cast<int>(center + norm_y * radius)
+        };
     };
+
+    Point prev = to_canvas(points[0]);
 
     // White lines
     uint8_t tr = 255, tg = 255, tb = 255;
 
     for (size_t i = 1; i < points.size(); ++i) {
-        Point curr = {
-            static_cast<int>(points[i].x * scale) + offset_x, 
-            static_cast<int>(points[i].y * scale) + offset_y
-        };
-
+        Point curr = to_canvas(points[i]);
         draw_line(image, png_size, png_size, prev, curr, tr, tg, tb);
         prev = curr;
     }
@@ -143,26 +151,33 @@ void GifGenerator::generate_png(const std::vector<Point>& points, int width, int
 void GifGenerator::generate_gradient_png(const std::vector<Point>& points, int width, int height, const std::string& output_filename) {
     if (points.empty()) return;
 
-    int png_size = 512;
-    int max_dim = std::max(width, height);
-    double scale = (double)png_size / max_dim;
-    
+    // Match SisyphusTable viewer: 800x800 canvas, center at 400,400, radius 380
+    const int png_size = 800;
+    const int center = 400;
+    const int radius = 380;
+
+    // Source image center and max radius (inscribed circle)
+    double src_cx = width / 2.0;
+    double src_cy = height / 2.0;
+    double src_max_r = std::min(width, height) / 2.0;
+
     std::vector<uint8_t> image(png_size * png_size * 4, 0); // Transparent background
 
-    int offset_x = (png_size - (int)(width * scale)) / 2;
-    int offset_y = (png_size - (int)(height * scale)) / 2;
-    
-    Point prev = {
-        static_cast<int>(points[0].x * scale) + offset_x, 
-        static_cast<int>(points[0].y * scale) + offset_y
+    // Convert source point to canvas coordinates (matching viewer's mapping)
+    auto to_canvas = [&](const Point& p) -> Point {
+        double norm_x = (p.x - src_cx) / src_max_r;
+        double norm_y = (p.y - src_cy) / src_max_r;
+        return {
+            static_cast<int>(center + norm_x * radius),
+            static_cast<int>(center + norm_y * radius)
+        };
     };
+
+    Point prev = to_canvas(points[0]);
 
     size_t n = points.size();
     for (size_t i = 1; i < n; ++i) {
-        Point curr = {
-            static_cast<int>(points[i].x * scale) + offset_x, 
-            static_cast<int>(points[i].y * scale) + offset_y
-        };
+        Point curr = to_canvas(points[i]);
 
         // Blue (0,0,255) -> Red (255,0,0)
         uint8_t r = static_cast<uint8_t>((static_cast<double>(i) / n) * 255);
