@@ -6,12 +6,40 @@
 #include <algorithm>
 #include <functional>
 
+#include <iostream>
+#include <chrono>
+
 namespace Utils {
+
+    class Timer {
+    public:
+        Timer(const std::string& name) : name_(name), start_(std::chrono::high_resolution_clock::now()) {}
+        ~Timer() {
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> diff = end - start_;
+            std::cout << "[TIMER] " << name_ << ": " << diff.count() << "s" << std::endl;
+        }
+    private:
+        std::string name_;
+        std::chrono::time_point<std::chrono::high_resolution_clock> start_;
+    };
+
+    inline bool thread_count_printed = false;
 
     template <typename Index, typename Func>
     void parallel_for(Index start, Index end, Func&& f) {
         unsigned int num_threads = std::thread::hardware_concurrency();
-        if (num_threads == 0) num_threads = 2;
+        
+        if (num_threads == 0) {
+            if (!thread_count_printed) {
+                std::cerr << "Warning: std::thread::hardware_concurrency() failed to detect cores. Falling back to 2 threads." << std::endl;
+                thread_count_printed = true;
+            }
+            num_threads = 2;
+        } else if (!thread_count_printed) {
+            std::cout << "Parallelizing across " << num_threads << " logical cores." << std::endl;
+            thread_count_printed = true;
+        }
 
         Index range = end - start;
         if (range == 0) return;

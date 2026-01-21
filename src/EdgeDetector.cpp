@@ -214,7 +214,7 @@ std::vector<Point> EdgeDetector::hysteresis(const std::vector<uint8_t>& image, i
 
 std::vector<Point> EdgeDetector::bridge_gaps(const std::vector<Point>& edges, int width, int height, int max_gap) {
     if (edges.empty()) return edges;
-
+    
     // Build a grid for fast lookup
     std::vector<uint8_t> grid(width * height, 0);
     for (const auto& p : edges) {
@@ -222,56 +222,74 @@ std::vector<Point> EdgeDetector::bridge_gaps(const std::vector<Point>& edges, in
             grid[p.y * width + p.x] = 1;
     }
 
-    // Count neighbors for each edge point
-    auto count_neighbors = [&](int x, int y) -> int {
+    // Count neighbors for each edge point (Parallelized)
+    std::vector<int> neighbor_counts(edges.size());
+    Utils::parallel_for(0, (int)edges.size(), [&](int i) {
+        const auto& p = edges[i];
         int count = 0;
         for (int dy = -1; dy <= 1; ++dy) {
             for (int dx = -1; dx <= 1; ++dx) {
                 if (dx == 0 && dy == 0) continue;
-                int nx = x + dx, ny = y + dy;
+                int nx = p.x + dx, ny = p.y + dy;
                 if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                     if (grid[ny * width + nx]) count++;
                 }
             }
         }
-        return count;
-    };
+        neighbor_counts[i] = count;
+    });
 
-    // Find endpoints (points with 1-2 neighbors indicating line ends or corners)
+    // Find endpoints
     std::vector<Point> endpoints;
-    for (const auto& p : edges) {
-        int n = count_neighbors(p.x, p.y);
-        if (n <= 2) {
-            endpoints.push_back(p);
+    for (size_t i = 0; i < edges.size(); ++i) {
+        if (neighbor_counts[i] <= 2) {
+            endpoints.push_back(edges[i]);
         }
+    }
+
+    if (endpoints.empty()) return edges;
+
+    // Spatial grid for endpoints
+    const int GRID_SIZE = 16;
+    int grid_cols = (width + GRID_SIZE - 1) / GRID_SIZE;
+    int grid_rows = (height + GRID_SIZE - 1) / GRID_SIZE;
+    std::vector<std::vector<int>> endpoint_grid(grid_cols * grid_rows);
+    for (int i = 0; i < (int)endpoints.size(); ++i) {
+        int gx = endpoints[i].x / GRID_SIZE;
+        int gy = endpoints[i].y / GRID_SIZE;
+        endpoint_grid[gy * grid_cols + gx].push_back(i);
     }
 
     // Try to bridge nearby endpoints
     std::vector<Point> result = edges;
     std::vector<uint8_t> bridged(endpoints.size(), 0);
 
-    for (size_t i = 0; i < endpoints.size(); ++i) {
+    for (int i = 0; i < (int)endpoints.size(); ++i) {
         if (bridged[i]) continue;
         const Point& p1 = endpoints[i];
 
-        double best_dist = max_gap * max_gap + 1;
+        double best_dist_sq = max_gap * max_gap + 1.0;
         int best_idx = -1;
 
-        for (size_t j = i + 1; j < endpoints.size(); ++j) {
-            if (bridged[j]) continue;
-            const Point& p2 = endpoints[j];
+        // Search in nearby grid cells
+        int gx0 = p1.x / GRID_SIZE;
+        int gy0 = p1.y / GRID_SIZE;
+        int r_cells = (max_gap + GRID_SIZE - 1) / GRID_SIZE;
 
-            // Skip if same point or already connected (adjacent)
-            double dx = p2.x - p1.x;
-            double dy = p2.y - p1.y;
-            double dist_sq = dx * dx + dy * dy;
-
-            if (dist_sq <= 2.0) continue; // Already adjacent
-            if (dist_sq > max_gap * max_gap) continue;
-
-            if (dist_sq < best_dist) {
-                best_dist = dist_sq;
-                best_idx = j;
+        for (int dy = -r_cells; dy <= r_cells; ++dy) {
+            for (int dx = -r_cells; dx <= r_cells; ++dx) {
+                int gx = gx0 + dx, gy = gy0 + dy;
+                if (gx >= 0 && gx < grid_cols && gy >= 0 && gy < grid_rows) {
+                    for (int j : endpoint_grid[gy * grid_cols + gx]) {
+                        if (i == j || bridged[j]) continue;
+                        const Point& p2 = endpoints[j];
+                        double d2 = (double)(p1.x-p2.x)*(p1.x-p2.x) + (double)(p1.y-p2.y)*(p1.y-p2.y);
+                        if (d2 > 2.0 && d2 < best_dist_sq) {
+                            best_dist_sq = d2;
+                            best_idx = j;
+                        }
+                    }
+                }
             }
         }
 

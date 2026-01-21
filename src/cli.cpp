@@ -13,6 +13,13 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include <chrono>
+#include <iomanip>
+#include <filesystem>
+#include "Utils.h"
+
+namespace fs = std::filesystem;
+
 // Helper to parse THR file
 std::vector<Point> parse_thr(const std::string& filename, int width, int height) {
     std::ifstream file(filename);
@@ -78,15 +85,66 @@ void print_usage(const char* name) {
     std::cout << "      --png <file>   Output PNG filename (white on transparent)\n";
     std::cout << "      --edges <file> Output PNG filename (edge points)\n";
     std::cout << "      --size <int>   Resolution (default 1024)\n";
+
+    std::cout << "  Benchmark:\n";
+    std::cout << "    " << name << " bench\n";
 }
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
+    if (argc < 2) {
         print_usage(argv[0]);
         return 1;
     }
 
     std::string mode = argv[1];
+
+    if (mode == "bench") {
+        std::string test_dir = "../tests/images";
+        if (!fs::exists(test_dir)) test_dir = "tests/images";
+
+        std::cout << std::left << std::setw(25) << "Image" 
+                  << std::setw(15) << "Resolution"
+                  << std::setw(15) << "Total Time" << std::endl;
+        std::cout << std::string(55, '-') << std::endl;
+
+        for (const auto& entry : fs::directory_iterator(test_dir)) {
+            std::string path = entry.path().string();
+            std::string ext = entry.path().extension().string();
+            if (ext != ".jpg" && ext != ".png" && ext != ".webp" && ext != ".jpeg") continue;
+
+            int width, height, channels;
+            if (stbi_info(path.c_str(), &width, &height, &channels) == 0) {
+                 std::string temp = "bench_temp.png";
+                 std::string cmd = "magick " + path + " -strip " + temp + " > /dev/null 2>&1";
+                 if (std::system(cmd.c_str()) == 0) {
+                     path = temp;
+                     stbi_info(path.c_str(), &width, &height, &channels);
+                 } else {
+                     continue;
+                 }
+            }
+
+            auto start = std::chrono::high_resolution_clock::now();
+            auto edges = EdgeDetector::detect_edges(path, 50, 150, 5);
+            auto path_pts = PathPlanner::plan_path(edges, width, height);
+            auto thr = ThrGenerator::generate_thr(path_pts, width, height);
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> diff = end - start;
+
+            std::string res = std::to_string(width) + "x" + std::to_string(height);
+            std::cout << std::left << std::setw(25) << entry.path().filename().string() 
+                      << std::setw(15) << res
+                      << std::fixed << std::setprecision(3) 
+                      << std::setw(15) << diff.count() << "s" << std::endl;
+        }
+        return 0;
+    }
+
+    if (argc < 3) {
+        print_usage(argv[0]);
+        return 1;
+    }
+
     std::string input_file = argv[2];
 
     if (mode == "gen") {
