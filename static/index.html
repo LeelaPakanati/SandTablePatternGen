@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThrGen - Sisyphus THR Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="main-header">
+            <h1>ThrGen - Sisyphus THR Generator</h1>
+            <p>Convert images to .thr files for Sisyphus kinetic sand tables.</p>
+            <ol class="steps">
+                <li>Upload an image (works best with simple outlines/silhouettes)</li>
+                <li>Adjust edge detection thresholds if needed</li>
+                <li>Click "Generate" to process</li>
+                <li>Download the .thr file</li>
+            </ol>
+        </header>
+
+        <main class="gradio-layout">
+            <div class="left-col">
+                <!-- Input Image Card -->
+                <div class="card input-card">
+                    <div class="card-header">
+                        <span class="icon">🖼️</span> Input Image
+                    </div>
+                    <div class="file-upload-area" id="dropZone">
+                        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" hidden>
+                        <div class="upload-placeholder">
+                            <span class="icon">📁</span>
+                            <p>Drop Image Here</p>
+                            <p class="sub-text">- or -</p>
+                            <p>Click to Upload</p>
+                        </div>
+                        <img id="imagePreview" class="hidden" alt="Preview">
+                    </div>
+                </div>
+
+                <!-- Parameters Card -->
+                <div class="card params-card">
+                    <div class="control-group">
+                        <div class="label-row">
+                            <label>Low Threshold</label>
+                            <div class="val-input-wrap">
+                                <input type="number" id="lowNum" value="50" min="1" max="255">
+                                <button class="reset-btn" onclick="resetParam('low')">🔄</button>
+                            </div>
+                        </div>
+                        <input type="range" id="low" min="1" max="255" value="50">
+                        <p class="help-text">Minimum intensity to <em>continue</em> a line. Points between Low and High are kept only if they connect to a strong edge. Higher values reduce "fuzz" but may break faint lines.</p>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="label-row">
+                            <label>High Threshold</label>
+                            <div class="val-input-wrap">
+                                <input type="number" id="highNum" value="150" min="1" max="255">
+                                <button class="reset-btn" onclick="resetParam('high')">🔄</button>
+                            </div>
+                        </div>
+                        <input type="range" id="high" min="1" max="255" value="150">
+                        <p class="help-text">Minimum intensity to <em>start</em> a line. Any pixel above this is a guaranteed "strong" edge. Higher values capture only the most prominent outlines.</p>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="label-row">
+                            <label>Blur Kernel</label>
+                            <div class="val-input-wrap">
+                                <input type="number" id="blurNum" value="5" min="1" max="15" step="2">
+                                <button class="reset-btn" onclick="resetParam('blur')">🔄</button>
+                            </div>
+                        </div>
+                        <input type="range" id="blur" min="1" max="15" step="2" value="5">
+                    </div>
+
+                    <button id="processBtn" onclick="processImage()" class="primary-btn">Generate</button>
+                </div>
+
+                <!-- Status Card -->
+                <div class="card status-card">
+                    <div class="card-header">Status</div>
+                    <div class="status-body">
+                        <div id="statusMessage" class="status-message">Ready</div>
+                        <div id="statusDetails" class="status-details"></div>
+                        
+                        <div id="loadingSpinner" class="spinner hidden"></div>
+                        <button id="stopBtn" onclick="stopProcessing()" class="stop-btn hidden">Stop</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-col">
+                <div class="results-grid">
+                    <!-- 1. Detected Edges -->
+                    <div class="card result-card">
+                        <div class="card-header">1. Detected Edges</div>
+                        <div class="canvas-wrapper">
+                            <canvas id="edgesCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2. Optimized Path -->
+                    <div class="card result-card">
+                        <div class="card-header">2. Path (blue &rarr; red)</div>
+                        <div class="canvas-wrapper">
+                            <canvas id="pathCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3. Simulation -->
+                    <div class="card result-card">
+                        <div class="card-header">3. Simulation</div>
+                        <div class="canvas-wrapper sand-bg">
+                            <img id="gifOutput" class="hidden result-img" alt="Simulation">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="download-footer">
+                    <div id="statsArea" class="stats hidden">
+                        <span id="pointCount">0</span> points
+                    </div>
+                    <button id="downloadBtn" onclick="downloadThr()" disabled class="primary-btn download-btn-full">
+                        <span>📥</span> Download .thr file
+                    </button>
+                </div>
+
+                <div id="loadingOverlay" class="hidden">
+            </div>
+        </main>
+
+        <footer class="tips-section">
+            <h3>Tips:</h3>
+            <ul>
+                <li>Use images with clear outlines on a contrasting background</li>
+                <li>Lower thresholds detect more edges (useful for faint lines)</li>
+                <li>The path visualization shows traversal order: blue (start) &rarr; red (end)</li>
+                <li>Green dot marks the starting point (closest to center)</li>
+            </ul>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

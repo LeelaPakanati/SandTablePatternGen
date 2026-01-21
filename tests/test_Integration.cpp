@@ -1,0 +1,80 @@
+#include "doctest.h"
+#include "../src/EdgeDetector.h"
+#include "../src/PathPlanner.h"
+#include "../src/ThrGenerator.h"
+#include "stb_image.h"
+#include <string>
+#include <iostream>
+#include <chrono>
+#include <cmath>
+
+void test_image_pipeline(const std::string& filename, int low, int high, int blur) {
+    int width, height, channels;
+    unsigned char* data = stbi_load(filename.c_str(), &width, &height, &channels, 0);
+    
+    REQUIRE_MESSAGE(data != nullptr, (std::string("Failed to load ") + filename).c_str());
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // 1. Edge Detection
+    auto edges = EdgeDetector::detect_edges_from_memory(data, width, height, channels, low, high, blur);
+    stbi_image_free(data);
+
+    // Depending on the image, we expect some edges
+    CHECK_MESSAGE(edges.size() > 0, (std::string("No edges found in ") + filename).c_str());
+
+    // 2. Path Planning
+    auto path = PathPlanner::plan_path(edges, width, height);
+    
+    // 3. THR Generation
+    auto thr = ThrGenerator::generate_thr(path, width, height);
+    std::string thr_content = ThrGenerator::to_string(thr);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+
+    std::cout << "Processed " << filename << " (" << width << "x" << height << ") in " << diff.count() << "s. "
+              << "Edges: " << edges.size() << ", Path: " << path.size() << " points." << std::endl;
+
+    CHECK(thr_content.length() > 0);
+    
+    // Check path continuity
+    if (!path.empty()) {
+        double max_jump = 0;
+        for(size_t i=0; i<path.size()-1; ++i) {
+            double dx = path[i].x - path[i+1].x;
+            double dy = path[i].y - path[i+1].y;
+            double dist = std::sqrt(dx*dx + dy*dy);
+            if(dist > max_jump) max_jump = dist;
+        }
+        CHECK(max_jump <= 3.0);
+    }
+}
+
+TEST_CASE("Integration::Shapes") {
+    test_image_pipeline("../tests/images/shapes.png", 50, 150, 5);
+}
+
+TEST_CASE("Integration::Butterfly") {
+    test_image_pipeline("../tests/images/butterfly.jpg", 50, 150, 3);
+}
+
+TEST_CASE("Integration::Baboon") {
+    test_image_pipeline("../tests/images/baboon.jpg", 50, 150, 5);
+}
+
+TEST_CASE("Integration::TajMahal") {
+    test_image_pipeline("../tests/images/taj_mahal.jpg", 50, 150, 5);
+}
+
+TEST_CASE("Integration::Nature") {
+    test_image_pipeline("../tests/images/nature.jpg", 30, 100, 5);
+}
+
+TEST_CASE("Integration::City") {
+    test_image_pipeline("../tests/images/city.jpg", 50, 150, 3);
+}
+
+TEST_CASE("Integration::Sketch") {
+    test_image_pipeline("../tests/images/sketch.jpg", 50, 150, 3);
+}

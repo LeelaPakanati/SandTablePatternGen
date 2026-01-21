@@ -1,0 +1,18 @@
+# Build
+build/
+cmake-build-debug/
+.cache/
+
+# Temp files
+*.png
+*.gif
+*.thr
+temp_upload*
+temp_processed*
+
+# Test data
+tests/images/
+
+# System
+.DS_Store
+Thumbs.db
