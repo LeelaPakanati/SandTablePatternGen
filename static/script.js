@@ -14,7 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
     syncInputs('blur', 'blurNum');
 
     // Drag and Drop
-    dropZone.addEventListener('click', () => imageInput.click());
+    dropZone.addEventListener('click', () => {
+        console.log("Dropzone clicked");
+        imageInput.click();
+    });
     
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -66,14 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.syncInputs = function(rangeId, numId) {
+function syncInputs(rangeId, numId) {
     const range = document.getElementById(rangeId);
     const num = document.getElementById(numId);
     range.addEventListener('input', () => num.value = range.value);
     num.addEventListener('input', () => range.value = num.value);
 }
 
-window.resetParam = function(type) {
+function resetParam(type) {
     const defaults = { low: 50, high: 150, blur: 5 };
     const range = document.getElementById(type);
     const num = document.getElementById(type + 'Num');
@@ -81,12 +84,12 @@ window.resetParam = function(type) {
     num.value = defaults[type];
 }
 
-window.updateStatus = function(message, details = "") {
+function updateStatus(message, details = "") {
     document.getElementById('statusMessage').textContent = message;
     document.getElementById('statusDetails').textContent = details;
 }
 
-window.stopProcessing = function() {
+function stopProcessing() {
     if (abortController) {
         abortController.abort();
         abortController = null;
@@ -103,7 +106,8 @@ function cleanupUI() {
     document.getElementById('processBtn').disabled = false;
 }
 
-window.processImage = async function() {
+async function processImage() {
+    console.log("processImage called");
     const input = document.getElementById('imageInput');
     if (!input.files[0]) {
         alert("Please select an image first");
@@ -257,7 +261,7 @@ function drawPath(points, imgW, imgH, size) {
     ctx.arc(points[n-1][0] + ox, points[n-1][1] + oy, ctx.lineWidth * 3, 0, 2 * Math.PI); ctx.fill();
 }
 
-window.downloadThr = function() {
+function downloadThr() {
     if (!currentThrContent) return;
     const patternName = document.getElementById('patternName').value.trim() || 'track';
     const blob = new Blob([currentThrContent], { type: 'text/plain' });
@@ -271,7 +275,7 @@ window.downloadThr = function() {
     URL.revokeObjectURL(url);
 }
 
-window.uploadToTable = async function() {
+async function uploadToTable() {
     if (!currentThrContent) return;
     
     const tableIp = document.getElementById('tableIp').value.trim();
