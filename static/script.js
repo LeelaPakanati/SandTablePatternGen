@@ -51,6 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
             imageInput.files = dataTransfer.files;
         }
 
+        // Set default pattern name from filename
+        const originalName = file.name;
+        const baseName = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+        document.getElementById('patternName').value = baseName;
+
         const reader = new FileReader();
         reader.onload = (e) => {
             imagePreview.src = e.target.result;
@@ -252,20 +257,21 @@ function drawPath(points, imgW, imgH, size) {
     ctx.arc(points[n-1][0] + ox, points[n-1][1] + oy, ctx.lineWidth * 3, 0, 2 * Math.PI); ctx.fill();
 }
 
-function downloadThr() {
+function window.downloadThr() {
     if (!currentThrContent) return;
+    const patternName = document.getElementById('patternName').value.trim() || 'track';
     const blob = new Blob([currentThrContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'track.thr';
+    a.download = patternName + '.thr';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
 
-async function uploadToTable() {
+async function window.uploadToTable() {
     if (!currentThrContent) return;
     
     const tableIp = document.getElementById('tableIp').value.trim();
@@ -274,23 +280,17 @@ async function uploadToTable() {
         return;
     }
 
+    const patternName = document.getElementById('patternName').value.trim() || 'track';
     const uploadBtn = document.getElementById('uploadBtn');
     uploadBtn.disabled = true;
     updateStatus("Uploading...", `Sending files to ${tableIp}...`);
 
-    const imageInput = document.getElementById('imageInput');
-    let baseFilename = "generated_pattern";
-    if (imageInput.files[0]) {
-        const originalName = imageInput.files[0].name;
-        baseFilename = originalName.substring(0, originalName.lastIndexOf('.'));
-    }
-
     try {
         // 1. Upload THR
-        updateStatus("Uploading...", `Uploading ${baseFilename}.thr...`);
+        updateStatus("Uploading...", `Uploading ${patternName}.thr...`);
         const thrFormData = new FormData();
         const thrBlob = new Blob([currentThrContent], { type: 'text/plain' });
-        thrFormData.append('file', thrBlob, baseFilename + ".thr");
+        thrFormData.append('file', thrBlob, patternName + ".thr");
 
         const thrResponse = await fetch(`http://${tableIp}/api/files/upload`, {
             method: 'POST',
@@ -302,14 +302,14 @@ async function uploadToTable() {
 
         // 2. Upload PNG (if available)
         if (currentPngUrl) {
-            updateStatus("Uploading...", `Uploading ${baseFilename}.png preview...`);
+            updateStatus("Uploading...", `Uploading ${patternName}.png preview...`);
             
             // Fetch the PNG from our server first
             const pngResponse = await fetch(currentPngUrl);
             const pngBlob = await pngResponse.blob();
             
             const pngFormData = new FormData();
-            pngFormData.append('file', pngBlob, baseFilename + ".png");
+            pngFormData.append('file', pngBlob, patternName + ".png");
 
             const tablePngResponse = await fetch(`http://${tableIp}/api/files/upload`, {
                 method: 'POST',

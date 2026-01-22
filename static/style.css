@@ -316,6 +316,30 @@ canvas, .result-img {
     align-items: center;
 }
 
+.pattern-name-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pattern-name-row label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--sub-text);
+    white-space: nowrap;
+}
+
+.pattern-name-row input {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.95rem;
+}
+
 .action-buttons {
     width: 100%;
     display: flex;
