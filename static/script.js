@@ -66,14 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function syncInputs(rangeId, numId) {
+window.syncInputs = function(rangeId, numId) {
     const range = document.getElementById(rangeId);
     const num = document.getElementById(numId);
     range.addEventListener('input', () => num.value = range.value);
     num.addEventListener('input', () => range.value = num.value);
 }
 
-function resetParam(type) {
+window.resetParam = function(type) {
     const defaults = { low: 50, high: 150, blur: 5 };
     const range = document.getElementById(type);
     const num = document.getElementById(type + 'Num');
@@ -81,12 +81,12 @@ function resetParam(type) {
     num.value = defaults[type];
 }
 
-function updateStatus(message, details = "") {
+window.updateStatus = function(message, details = "") {
     document.getElementById('statusMessage').textContent = message;
     document.getElementById('statusDetails').textContent = details;
 }
 
-function stopProcessing() {
+window.stopProcessing = function() {
     if (abortController) {
         abortController.abort();
         abortController = null;
@@ -103,7 +103,7 @@ function cleanupUI() {
     document.getElementById('processBtn').disabled = false;
 }
 
-async function processImage() {
+window.processImage = async function() {
     const input = document.getElementById('imageInput');
     if (!input.files[0]) {
         alert("Please select an image first");
@@ -257,7 +257,7 @@ function drawPath(points, imgW, imgH, size) {
     ctx.arc(points[n-1][0] + ox, points[n-1][1] + oy, ctx.lineWidth * 3, 0, 2 * Math.PI); ctx.fill();
 }
 
-function window.downloadThr() {
+window.downloadThr = function() {
     if (!currentThrContent) return;
     const patternName = document.getElementById('patternName').value.trim() || 'track';
     const blob = new Blob([currentThrContent], { type: 'text/plain' });
@@ -271,7 +271,7 @@ function window.downloadThr() {
     URL.revokeObjectURL(url);
 }
 
-async function window.uploadToTable() {
+window.uploadToTable = async function() {
     if (!currentThrContent) return;
     
     const tableIp = document.getElementById('tableIp').value.trim();
