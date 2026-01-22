@@ -21,8 +21,14 @@
 
         <main class="gradio-layout">
             <div class="left-col">
+                <!-- Input Tabs -->
+                <div class="input-tabs">
+                    <button class="tab-btn active" onclick="switchTab('image')">From Image</button>
+                    <button class="tab-btn" onclick="switchTab('thr')">From .thr File</button>
+                </div>
+
                 <!-- Input Image Card -->
-                <div class="card input-card">
+                <div class="card input-card" id="imageTab">
                     <div class="card-header">
                         <span class="icon">🖼️</span> Input Image
                     </div>
@@ -35,6 +41,29 @@
                             <p>Click to Upload</p>
                         </div>
                         <img id="imagePreview" class="hidden" alt="Preview">
+                    </div>
+                </div>
+
+                <!-- Input THR Card -->
+                <div class="card input-card hidden" id="thrTab">
+                    <div class="card-header">
+                        <span class="icon">📄</span> Input .thr File
+                    </div>
+                    <div class="file-upload-area" id="thrDropZone">
+                        <input type="file" id="thrInput" accept=".thr" hidden>
+                        <div class="upload-placeholder" id="thrPlaceholder">
+                            <span class="icon">📄</span>
+                            <p>Drop .thr File Here</p>
+                            <p class="sub-text">- or -</p>
+                            <p>Click to Upload</p>
+                        </div>
+                        <div id="thrFileInfo" class="thr-file-info hidden">
+                            <span class="icon">📄</span>
+                            <p id="thrFileName"></p>
+                        </div>
+                    </div>
+                    <div class="thr-actions">
+                        <button id="processThrBtn" onclick="processThr()" class="primary-btn" disabled>Generate Preview</button>
                     </div>
                 </div>
 
@@ -141,6 +170,21 @@
                             <button id="uploadBtn" onclick="uploadToTable()" disabled class="primary-btn upload-btn">
                                 <span>🚀</span> Upload to Table
                             </button>
+                        </div>
+                    </div>
+
+                    <div id="uploadProgressArea" class="upload-progress-area hidden">
+                        <div class="upload-progress-row">
+                            <span class="upload-progress-label">.thr</span>
+                            <div class="progress-container">
+                                <div id="thrProgressBar" class="progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="upload-progress-row">
+                            <span class="upload-progress-label">.png</span>
+                            <div class="progress-container">
+                                <div id="pngProgressBar" class="progress-bar"></div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -87,6 +87,63 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Input Tabs */
+.input-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px 15px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--sub-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-color);
+}
+
+.tab-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* THR File Info */
+.thr-file-info {
+    text-align: center;
+    padding: 20px;
+}
+
+.thr-file-info .icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.thr-file-info p {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.thr-actions {
+    padding: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.thr-actions .primary-btn {
+    margin-top: 0;
+}
+
 /* Input Card */
 .file-upload-area {
     height: 300px;
@@ -408,6 +465,29 @@ canvas, .result-img {
     cursor: not-allowed;
     transform: none !important;
     box-shadow: none !important;
+}
+
+/* Upload Progress Area */
+.upload-progress-area {
+    width: 100%;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.upload-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.upload-progress-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--sub-text);
+    width: 35px;
+    text-align: right;
 }
 
 /* Stats */

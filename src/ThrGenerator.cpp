@@ -65,3 +65,39 @@ std::string ThrGenerator::to_string(const std::vector<ThrPoint>& thr_points) {
     }
     return ss.str();
 }
+
+std::vector<ThrPoint> ThrGenerator::parse(const std::string& thr_content) {
+    std::vector<ThrPoint> points;
+    std::istringstream stream(thr_content);
+    std::string line;
+
+    while (std::getline(stream, line)) {
+        // Skip empty lines and comments
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream line_stream(line);
+        double theta, rho;
+        if (line_stream >> theta >> rho) {
+            points.push_back({theta, rho});
+        }
+    }
+
+    return points;
+}
+
+std::vector<Point> ThrGenerator::to_cartesian(const std::vector<ThrPoint>& thr_points, int width, int height) {
+    std::vector<Point> points;
+    if (thr_points.empty()) return points;
+
+    double center_x = width / 2.0;
+    double center_y = height / 2.0;
+    double max_radius = std::min(width, height) / 2.0;
+
+    for (const auto& tp : thr_points) {
+        int x = static_cast<int>(center_x + std::cos(tp.theta) * tp.rho * max_radius);
+        int y = static_cast<int>(center_y + std::sin(tp.theta) * tp.rho * max_radius);
+        points.push_back({x, y});
+    }
+
+    return points;
+}

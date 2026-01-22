@@ -1,24 +1,25 @@
 let currentThrContent = "";
 let currentPngUrl = "";
 let abortController = null;
+let currentThrFile = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('dropZone');
     const imageInput = document.getElementById('imageInput');
     const imagePreview = document.getElementById('imagePreview');
-    const uploadPlaceholder = document.querySelector('.upload-placeholder');
+    const uploadPlaceholder = document.querySelector('#dropZone .upload-placeholder');
 
     // Sync range and number inputs
     syncInputs('low', 'lowNum');
     syncInputs('high', 'highNum');
     syncInputs('blur', 'blurNum');
 
-    // Drag and Drop
+    // Image Drag and Drop
     dropZone.addEventListener('click', () => {
         console.log("Dropzone clicked");
         imageInput.click();
     });
-    
+
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('dragover');
@@ -32,22 +33,22 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
         if (e.dataTransfer.files.length) {
-            handleFile(e.dataTransfer.files[0]);
+            handleImageFile(e.dataTransfer.files[0]);
         }
     });
 
     imageInput.addEventListener('change', () => {
         if (imageInput.files.length) {
-            handleFile(imageInput.files[0]);
+            handleImageFile(imageInput.files[0]);
         }
     });
 
-    function handleFile(file) {
+    function handleImageFile(file) {
         if (!file.type.startsWith('image/')) {
             alert("Please upload an image file");
             return;
         }
-        
+
         if (file !== imageInput.files[0]) {
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
@@ -67,7 +68,82 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         reader.readAsDataURL(file);
     }
+
+    // THR File Drag and Drop
+    const thrDropZone = document.getElementById('thrDropZone');
+    const thrInput = document.getElementById('thrInput');
+    const thrPlaceholder = document.getElementById('thrPlaceholder');
+    const thrFileInfo = document.getElementById('thrFileInfo');
+    const thrFileName = document.getElementById('thrFileName');
+    const processThrBtn = document.getElementById('processThrBtn');
+
+    thrDropZone.addEventListener('click', () => {
+        thrInput.click();
+    });
+
+    thrDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        thrDropZone.classList.add('dragover');
+    });
+
+    thrDropZone.addEventListener('dragleave', () => {
+        thrDropZone.classList.remove('dragover');
+    });
+
+    thrDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        thrDropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            handleThrFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    thrInput.addEventListener('change', () => {
+        if (thrInput.files.length) {
+            handleThrFile(thrInput.files[0]);
+        }
+    });
+
+    function handleThrFile(file) {
+        if (!file.name.endsWith('.thr')) {
+            alert("Please upload a .thr file");
+            return;
+        }
+
+        currentThrFile = file;
+
+        // Set pattern name from filename
+        const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        document.getElementById('patternName').value = baseName;
+
+        // Update UI
+        thrFileName.textContent = file.name;
+        thrPlaceholder.classList.add('hidden');
+        thrFileInfo.classList.remove('hidden');
+        processThrBtn.disabled = false;
+    }
 });
+
+function switchTab(tab) {
+    const imageTab = document.getElementById('imageTab');
+    const thrTab = document.getElementById('thrTab');
+    const paramsCard = document.querySelector('.params-card');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+
+    tabBtns.forEach(btn => btn.classList.remove('active'));
+
+    if (tab === 'image') {
+        imageTab.classList.remove('hidden');
+        thrTab.classList.add('hidden');
+        paramsCard.classList.remove('hidden');
+        tabBtns[0].classList.add('active');
+    } else {
+        imageTab.classList.add('hidden');
+        thrTab.classList.remove('hidden');
+        paramsCard.classList.add('hidden');
+        tabBtns[1].classList.add('active');
+    }
+}
 
 function syncInputs(rangeId, numId) {
     const range = document.getElementById(rangeId);
@@ -216,6 +292,98 @@ async function processImage() {
     }
 }
 
+async function processThr() {
+    if (!currentThrFile) {
+        alert("Please select a .thr file first");
+        return;
+    }
+
+    const processThrBtn = document.getElementById('processThrBtn');
+    const gifOutput = document.getElementById('gifOutput');
+    const spinner = document.getElementById('loadingSpinner');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+
+    // UI Reset
+    processThrBtn.disabled = true;
+    progressContainer.classList.remove('hidden');
+    progressBar.style.width = '0%';
+    gifOutput.classList.add('hidden');
+
+    updateStatus("Uploading...", "Sending .thr file to server...");
+
+    const formData = new FormData();
+    formData.append('thr', currentThrFile);
+
+    try {
+        const data = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/process_thr');
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percent + '%';
+                    if (percent >= 100) {
+                        updateStatus("Processing...", "Generating visualization...");
+                        spinner.classList.remove('hidden');
+                        progressContainer.classList.add('hidden');
+                    }
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        resolve(JSON.parse(xhr.responseText));
+                    } catch(e) {
+                        reject(new Error("Invalid server response"));
+                    }
+                } else {
+                    reject(new Error(xhr.responseText || `Server returned ${xhr.status}`));
+                }
+            };
+
+            xhr.onerror = () => reject(new Error("Network error"));
+            xhr.send(formData);
+        });
+
+        updateStatus("Finalizing...", "Generating visualization and animation...");
+
+        currentThrContent = data.thr;
+        currentPngUrl = data.png_url;
+
+        // Draw views
+        const size = Math.max(data.width, data.height);
+        drawEdges(data.edges || [], data.width, data.height, size);
+        drawPath(data.preview, data.width, data.height, size);
+
+        // Set GIF
+        gifOutput.src = data.gif_url;
+        gifOutput.classList.remove('hidden');
+
+        // Update stats
+        document.getElementById('pointCount').textContent = data.preview.length;
+        document.getElementById('statsArea').classList.remove('hidden');
+
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.disabled = false;
+        const uploadBtn = document.getElementById('uploadBtn');
+        uploadBtn.disabled = false;
+
+        updateStatus("Success!", `Generated preview with ${data.preview.length} points.`);
+
+    } catch (e) {
+        updateStatus("Error", e.message);
+        alert("Error: " + e.message);
+    } finally {
+        processThrBtn.disabled = false;
+        spinner.classList.add('hidden');
+        progressContainer.classList.add('hidden');
+        progressBar.style.width = '0%';
+    }
+}
+
 function resizeCanvas(canvas, size) {
     canvas.width = size;
     canvas.height = size;
@@ -277,7 +445,7 @@ function downloadThr() {
 
 async function uploadToTable() {
     if (!currentThrContent) return;
-    
+
     const tableIp = document.getElementById('tableIp').value.trim();
     if (!tableIp) {
         alert("Please enter the Table IP address");
@@ -286,7 +454,14 @@ async function uploadToTable() {
 
     const patternName = document.getElementById('patternName').value.trim() || 'track';
     const uploadBtn = document.getElementById('uploadBtn');
+    const uploadProgressArea = document.getElementById('uploadProgressArea');
+    const thrProgressBar = document.getElementById('thrProgressBar');
+    const pngProgressBar = document.getElementById('pngProgressBar');
+
     uploadBtn.disabled = true;
+    uploadProgressArea.classList.remove('hidden');
+    thrProgressBar.style.width = '0%';
+    pngProgressBar.style.width = '0%';
     updateStatus("Uploading...", `Sending files to ${tableIp}...`);
 
     try {
@@ -296,34 +471,34 @@ async function uploadToTable() {
         const thrBlob = new Blob([currentThrContent], { type: 'text/plain' });
         thrFormData.append('file', thrBlob, patternName + ".thr");
 
-        const thrResponse = await fetch(`http://${tableIp}/api/files/upload`, {
-            method: 'POST',
-            body: thrFormData,
-            mode: 'cors'
-        });
-
-        if (!thrResponse.ok) throw new Error(`THR Upload Failed: ${thrResponse.status}`);
+        await uploadWithProgress(
+            `http://${tableIp}/api/files/upload`,
+            thrFormData,
+            thrProgressBar
+        );
 
         // 2. Upload PNG (if available)
         if (currentPngUrl) {
             updateStatus("Uploading...", `Uploading ${patternName}.png preview...`);
-            
+
             // Fetch the PNG from our server first
             const pngResponse = await fetch(currentPngUrl);
             const pngBlob = await pngResponse.blob();
-            
+
             const pngFormData = new FormData();
             pngFormData.append('file', pngBlob, patternName + ".png");
 
-            const tablePngResponse = await fetch(`http://${tableIp}/api/files/upload`, {
-                method: 'POST',
-                body: pngFormData,
-                mode: 'cors'
-            });
-
-            if (!tablePngResponse.ok) {
-                console.warn("PNG preview upload failed, but THR was successful.");
+            try {
+                await uploadWithProgress(
+                    `http://${tableIp}/api/files/upload`,
+                    pngFormData,
+                    pngProgressBar
+                );
+            } catch (pngError) {
+                console.warn("PNG preview upload failed, but THR was successful.", pngError);
             }
+        } else {
+            pngProgressBar.style.width = '100%';
         }
 
         updateStatus("Upload Complete!", `Successfully uploaded files to table.`);
@@ -334,5 +509,34 @@ async function uploadToTable() {
         alert("Upload failed: " + e.message);
     } finally {
         uploadBtn.disabled = false;
+        uploadProgressArea.classList.add('hidden');
+        thrProgressBar.style.width = '0%';
+        pngProgressBar.style.width = '0%';
     }
+}
+
+function uploadWithProgress(url, formData, progressBar) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                progressBar.style.width = percent + '%';
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                progressBar.style.width = '100%';
+                resolve(xhr.responseText);
+            } else {
+                reject(new Error(`Upload failed: ${xhr.status}`));
+            }
+        };
+
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.send(formData);
+    });
 }
