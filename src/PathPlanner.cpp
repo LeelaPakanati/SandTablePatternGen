@@ -277,6 +277,7 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
                 if (curr_p.x != best_v.x || curr_p.y != best_v.y) {
                     std::queue<Point> q;
                     q.push(curr_p);
+                    
                     static std::vector<int> parent;
                     if (parent.size() != (size_t)width * height) parent.assign(width * height, -1);
                     else std::fill(parent.begin(), parent.end(), -1);
@@ -315,6 +316,7 @@ std::vector<Point> PathPlanner::plan_path(const std::vector<Point>& input_points
                         curr_p = best_v;
                     }
                 }
+
                 add_straight(curr_p, best_u);
                 next_p = best_u;
                 goto found_point;
