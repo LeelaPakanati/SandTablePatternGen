@@ -18,8 +18,28 @@ using json = nlohmann::json;
 int main() {
     httplib::Server svr;
 
-    // Serve static files
-    svr.set_mount_point("/", "./static");
+    // Serve static files - check root or build directory
+    std::string static_path = "./static";
+    if (!std::ifstream("static/index.html").good()) {
+        if (std::ifstream("../static/index.html").good()) {
+            static_path = "../static";
+        }
+    }
+    
+    std::cout << "Mounting static files from: " << static_path << std::endl;
+    svr.set_mount_point("/", static_path);
+
+    // Default route for / to serve index.html explicitly
+    svr.Get("/", [static_path](const httplib::Request&, httplib::Response& res) {
+        std::ifstream ifs(static_path + "/index.html");
+        if (ifs.good()) {
+            std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+            res.set_content(content, "text/html");
+        } else {
+            res.status = 404;
+            res.set_content("Index file not found", "text/plain");
+        }
+    });
 
     // Process endpoint
     svr.Post("/process", [](const httplib::Request& req, httplib::Response& res) {
