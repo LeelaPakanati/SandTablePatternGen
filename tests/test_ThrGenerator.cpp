@@ -30,8 +30,8 @@ TEST_CASE("ThrGenerator::generate_thr") {
     CHECK(thr[1].rho == doctest::Approx(1.0));
 
     // Second point {50, 0}
-    // dx=0, dy=-50. atan2(-(-50), 0) = atan2(50, 0) = PI/2 = 1.5707...
-    CHECK(thr[2].theta == doctest::Approx(1.570796).epsilon(0.001));
+    // dx=0, dy=-50. atan2(dy, dx) = atan2(-50, 0) = -PI/2 = -1.5707...
+    CHECK(thr[2].theta == doctest::Approx(-1.570796).epsilon(0.001));
     CHECK(thr[2].rho == doctest::Approx(1.0));
 
     // End point (center)

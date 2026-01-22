@@ -5,6 +5,7 @@
 #include "ThrGenerator.h"
 #include "GifGenerator.h"
 #include "stb_image.h"
+#include "stb_image_write.h"
 
 #include <iostream>
 #include <fstream>
