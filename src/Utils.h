@@ -5,22 +5,93 @@
 #include <future>
 #include <algorithm>
 #include <functional>
+#include <map>
+#include <mutex>
 
 #include <iostream>
 #include <chrono>
 
 namespace Utils {
 
+    // Timing report structure for collecting stage timings
+    struct TimingReport {
+        std::map<std::string, double> stages;
+        std::mutex mutex;
+
+        void record(const std::string& stage, double ms) {
+            std::lock_guard<std::mutex> lock(mutex);
+            stages[stage] = ms;
+        }
+
+        double total_ms() const {
+            double sum = 0;
+            for (const auto& p : stages) sum += p.second;
+            return sum;
+        }
+
+        void print() const {
+            std::cout << "\n[TIMING REPORT]" << std::endl;
+            for (const auto& p : stages) {
+                std::cout << "  " << p.first << ": " << p.second << " ms" << std::endl;
+            }
+            std::cout << "  TOTAL: " << total_ms() << " ms\n" << std::endl;
+        }
+    };
+
+    // Global timing report (thread-safe)
+    inline TimingReport& get_timing_report() {
+        static TimingReport report;
+        return report;
+    }
+
+    inline void clear_timing_report() {
+        auto& report = get_timing_report();
+        std::lock_guard<std::mutex> lock(report.mutex);
+        report.stages.clear();
+    }
+
     class Timer {
     public:
-        Timer(const std::string& name) : name_(name), start_(std::chrono::high_resolution_clock::now()) {}
+        Timer(const std::string& name, bool log_to_console = true, bool record_to_report = false)
+            : name_(name), log_to_console_(log_to_console), record_to_report_(record_to_report),
+              start_(std::chrono::high_resolution_clock::now()) {}
+
         ~Timer() {
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> diff = end - start_;
-            std::cout << "[TIMER] " << name_ << ": " << diff.count() << "s" << std::endl;
+            stop();
         }
+
+        double stop() {
+            if (stopped_) return elapsed_ms_;
+            stopped_ = true;
+
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> diff = end - start_;
+            elapsed_ms_ = diff.count();
+
+            if (log_to_console_) {
+                std::cout << "[TIMER] " << name_ << ": " << elapsed_ms_ << " ms" << std::endl;
+            }
+
+            if (record_to_report_) {
+                get_timing_report().record(name_, elapsed_ms_);
+            }
+
+            return elapsed_ms_;
+        }
+
+        double elapsed_ms() const {
+            if (stopped_) return elapsed_ms_;
+            auto now = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> diff = now - start_;
+            return diff.count();
+        }
+
     private:
         std::string name_;
+        bool log_to_console_;
+        bool record_to_report_;
+        bool stopped_ = false;
+        double elapsed_ms_ = 0;
         std::chrono::time_point<std::chrono::high_resolution_clock> start_;
     };
 

@@ -4,6 +4,7 @@
 #include "PathPlanner.h"
 #include "ThrGenerator.h"
 #include "GifGenerator.h"
+#include "Utils.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
 
@@ -117,24 +118,51 @@ int main() {
 
         std::cout << "Processing image: " << width << "x" << height << std::endl;
 
-        // Processing
-        auto edges = EdgeDetector::detect_edges(target_file, low, high, blur);
-        auto path = PathPlanner::plan_path(edges, width, height);
-        auto thr = ThrGenerator::generate_thr(path, width, height);
-        std::string thr_content = ThrGenerator::to_string(thr);
+        // Clear timing report for this request
+        Utils::clear_timing_report();
+
+        // Processing with timing
+        std::vector<Point> edges;
+        {
+            Utils::Timer t("edge_detection", true, true);
+            edges = EdgeDetector::detect_edges(target_file, low, high, blur);
+        }
+
+        std::vector<Point> path;
+        {
+            Utils::Timer t("path_planning", true, true);
+            path = PathPlanner::plan_path(edges, width, height);
+        }
+
+        std::vector<ThrPoint> thr;
+        std::string thr_content;
+        {
+            Utils::Timer t("thr_generation", true, true);
+            thr = ThrGenerator::generate_thr(path, width, height);
+            thr_content = ThrGenerator::to_string(thr);
+        }
 
         // Generate GIF
         std::time_t t = std::time(nullptr);
         std::string base_name = "sim_" + std::to_string(t);
         std::string gif_filename = "static/" + base_name + ".gif";
-        GifGenerator::generate_gif(path, width, height, gif_filename);
+        {
+            Utils::Timer timer("gif_generation", true, true);
+            GifGenerator::generate_gif(path, width, height, gif_filename);
+        }
         std::cout << "Generated GIF: " << gif_filename << std::endl;
 
         // Generate PNG (white path on transparent background for table overlay)
         std::string png_name = base_name + ".png";
         std::string png_filename = "static/" + png_name;
-        GifGenerator::generate_png(path, width, height, png_filename);
+        {
+            Utils::Timer timer("png_generation", true, true);
+            GifGenerator::generate_png(path, width, height, png_filename);
+        }
         std::cout << "Generated PNG: " << png_filename << std::endl;
+
+        // Print timing report
+        Utils::get_timing_report().print();
 
         // JSON response
         json response;
@@ -158,11 +186,80 @@ int main() {
         response["width"] = width;
         response["height"] = height;
 
+        // Add timing data to response
+        json timing;
+        const auto& report = Utils::get_timing_report();
+        for (const auto& p : report.stages) {
+            timing[p.first] = p.second;
+        }
+        timing["total_ms"] = report.total_ms();
+        response["timing"] = timing;
+
         res.set_content(response.dump(), "application/json");
         
         // Cleanup
         std::remove(upload_filename.c_str());
         std::remove(converted_filename.c_str());
+    });
+
+    // Process THR file endpoint - regenerate visualization from existing .thr
+    svr.Post("/process_thr", [](const httplib::Request& req, httplib::Response& res) {
+        if (!req.form.has_file("thr")) {
+            res.status = 400;
+            res.set_content("No THR file provided", "text/plain");
+            return;
+        }
+
+        const auto& file = req.form.get_file("thr");
+        std::string thr_content(file.content.data(), file.content.size());
+
+        // Parse the .thr file
+        auto thr_points = ThrGenerator::parse(thr_content);
+        if (thr_points.empty()) {
+            res.status = 400;
+            res.set_content("Invalid or empty THR file", "text/plain");
+            return;
+        }
+
+        // Use default dimensions (square canvas)
+        int width = 1024;
+        int height = 1024;
+
+        // Convert polar to Cartesian for visualization
+        auto path = ThrGenerator::to_cartesian(thr_points, width, height);
+
+        std::cout << "Processing THR file: " << thr_points.size() << " points" << std::endl;
+
+        // Generate GIF
+        std::time_t t = std::time(nullptr);
+        std::string base_name = "sim_" + std::to_string(t);
+        std::string gif_filename = "static/" + base_name + ".gif";
+        GifGenerator::generate_gif(path, width, height, gif_filename);
+        std::cout << "Generated GIF: " << gif_filename << std::endl;
+
+        // Generate PNG
+        std::string png_name = base_name + ".png";
+        std::string png_filename = "static/" + png_name;
+        GifGenerator::generate_png(path, width, height, png_filename);
+        std::cout << "Generated PNG: " << png_filename << std::endl;
+
+        // JSON response
+        json response;
+        response["thr"] = thr_content;
+        response["gif_url"] = "/" + base_name + ".gif";
+        response["png_url"] = "/" + base_name + ".png";
+
+        // Path for preview
+        std::vector<std::vector<int>> preview_path;
+        for (const auto& p : path) {
+            preview_path.push_back({p.x, p.y});
+        }
+        response["preview"] = preview_path;
+        response["edges"] = json::array(); // No edges for THR import
+        response["width"] = width;
+        response["height"] = height;
+
+        res.set_content(response.dump(), "application/json");
     });
 
     std::cout << "Server started at http://localhost:8080" << std::endl;

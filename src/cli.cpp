@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
             write_points_png(edges, width, height, edges_out);
             std::cout << "Wrote Edges PNG to " << edges_out << std::endl;
         }
-        
+
         auto path = PathPlanner::plan_path(edges, width, height);
         auto thr = ThrGenerator::generate_thr(path, width, height);
         

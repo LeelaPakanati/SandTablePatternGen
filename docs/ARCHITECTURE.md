@@ -10,12 +10,13 @@ The application follows a monolithic architecture with a clear separation betwee
 
 ```mermaid
 graph TD
-    User[User Browser] <-->|HTTP/JSON| Server[C++ Server (httplib)]
+    User[User Browser] -->|HTTP Request| Server[C++ Server]
+    Server -->|HTTP Response| User
     Server --> EdgeDetector[Edge Detector]
     Server --> PathPlanner[Path Planner]
     Server --> ThrGenerator[THR Generator]
     Server --> GifGenerator[GIF Generator]
-    Server --> ImgIO[Image I/O (stb/magick)]
+    Server --> ImgIO[Image I/O]
 ```
 
 ### Components
@@ -64,6 +65,23 @@ graph TD
 -   **Multi-threading**: `Utils::parallel_for` distributes pixel-wise operations (Blur, Sobel) and component distance calculations across available CPU cores.
 -   **Strided Sampling**: Instead of $O(N^2)$ pixel comparisons for component connection, the planner samples every $K$-th point, drastically reducing complexity for large images.
 -   **Intelligent Resizing**: Images > 2048px are downscaled before processing to keep runtime interactive.
+-   **Spatial Index (Grid-of-Buckets)**: Path planner uses a spatial grid for O(1) average-case lookups of nearby points.
+-   **Parallel DSU**: Component labeling uses parallel Disjoint Set Union with lock-based synchronization.
+-   **SIMD-friendly Loops**: Gaussian blur and Sobel operator loops are structured for compiler auto-vectorization.
+-   **Native C++ Bilinear Downsampling**: Removes ImageMagick dependency for common resize operations.
+-   **Bridge Gaps Optimization**: Spatial grid acceleration for endpoint bridging.
+-   **`std::vector<uint8_t>` over `std::vector<bool>`**: Avoids bit-packing overhead in parallel sections.
+
+## Performance Timing
+
+The server includes detailed timing instrumentation for each pipeline stage:
+-   `edge_detection`: Grayscale, blur, Sobel, NMS, hysteresis, bridge gaps
+-   `path_planning`: DSU component labeling, spatial traversal
+-   `thr_generation`: Polar coordinate conversion
+-   `gif_generation`: Animation rendering
+-   `png_generation`: Static image output
+
+Timing data is returned in the JSON response under the `timing` key and printed to the console.
 
 ## Data Flow
 
