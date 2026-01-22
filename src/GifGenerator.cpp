@@ -1,6 +1,7 @@
 #include "GifGenerator.h"
 #include "gif.h"
 #include "stb_image_write.h"
+#include "Utils.h"
 #include <cmath>
 #include <algorithm>
 #include <iostream>
@@ -20,13 +21,13 @@ void GifGenerator::generate_gif(const std::vector<Point>& points, int width, int
 
     std::vector<uint8_t> frame(gif_size * gif_size * 4);
     
-    // Initialize background to Dark Sand Color
-    for (int i = 0; i < gif_size * gif_size; ++i) {
+    // Initialize background to Dark Sand Color (Parallel)
+    Utils::parallel_for(0, gif_size * gif_size, [&](int i) {
         frame[i * 4] = 50;      // R
         frame[i * 4 + 1] = 40;  // G
         frame[i * 4 + 2] = 30;  // B
         frame[i * 4 + 3] = 255; // A
-    }
+    });
 
     int total_points = points.size();
     int points_per_frame = std::max(1, total_points / 100); // 100 frames total
@@ -62,6 +63,7 @@ void GifGenerator::generate_gif(const std::vector<Point>& points, int width, int
             // Scaled radius, min 3
             int br = std::max(3, static_cast<int>(4.0 * scale));
             
+            // Parallelize ball drawing (simple for small br, but good for consistency)
             for (int dy = -br; dy <= br; ++dy) {
                 for (int dx = -br; dx <= br; ++dx) {
                     if (dx*dx + dy*dy <= br*br) {

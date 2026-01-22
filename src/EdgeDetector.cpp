@@ -116,40 +116,47 @@ std::vector<uint8_t> EdgeDetector::gaussian_blur(const std::vector<uint8_t>& ima
 
     // Parallelize blur (iterate over rows)
     Utils::parallel_for(r, height - r, [&](int y) {
+        const uint8_t* in_ptr = &image[y * width];
+        uint8_t* out_ptr = &output[y * width];
+        
         for (int x = r; x < width - r; ++x) {
             double val = 0.0;
+            // Manual unrolling of the kernel application for better speed
             for (int ky = -r; ky <= r; ++ky) {
-                for (int kx = -r; kx <= r; ++kx) {
-                    val += image[(y + ky) * width + (x + kx)] * kernel[(ky + r) * kernel_size + (kx + r)];
+                const uint8_t* row_ptr = &image[(y + ky) * width + (x - r)];
+                const double* kernel_ptr = &kernel[(ky + r) * kernel_size];
+                
+                for (int kx = 0; kx < kernel_size; ++kx) {
+                    val += row_ptr[kx] * kernel_ptr[kx];
                 }
             }
-            output[y * width + x] = static_cast<uint8_t>(std::min(255.0, std::max(0.0, val)));
+            out_ptr[x] = static_cast<uint8_t>(val);
         }
     });
     return output;
 }
 
 void EdgeDetector::sobel(const std::vector<uint8_t>& image, int width, int height, std::vector<float>& magnitude, std::vector<float>& angle) {
-    // Standard Sobel kernels
-    int Gx[3][3] = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
-    int Gy[3][3] = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
-
     // Parallelize sobel (iterate over rows)
     Utils::parallel_for(1, height - 1, [&](int y) {
+        const uint8_t* p_prev = &image[(y - 1) * width];
+        const uint8_t* p_curr = &image[y * width];
+        const uint8_t* p_next = &image[(y + 1) * width];
+        
+        float* mag_ptr = &magnitude[y * width];
+        float* ang_ptr = &angle[y * width];
+
         for (int x = 1; x < width - 1; ++x) {
-            float sumX = 0;
-            float sumY = 0;
+            // Gx = (p[y-1][x+1] + 2*p[y][x+1] + p[y+1][x+1]) - (p[y-1][x-1] + 2*p[y][x-1] + p[y+1][x-1])
+            float gx = (p_prev[x + 1] + 2.0f * p_curr[x + 1] + p_next[x + 1]) - 
+                       (p_prev[x - 1] + 2.0f * p_curr[x - 1] + p_next[x - 1]);
+            
+            // Gy = (p[y+1][x-1] + 2*p[y+1][x] + p[y+1][x+1]) - (p[y-1][x-1] + 2*p[y-1][x] + p[y-1][x+1])
+            float gy = (p_next[x - 1] + 2.0f * p_next[x] + p_next[x + 1]) - 
+                       (p_prev[x - 1] + 2.0f * p_prev[x] + p_prev[x + 1]);
 
-            for (int i = -1; i <= 1; ++i) {
-                for (int j = -1; j <= 1; ++j) {
-                    int p = image[(y + i) * width + (x + j)];
-                    sumX += p * Gx[i + 1][j + 1];
-                    sumY += p * Gy[i + 1][j + 1];
-                }
-            }
-
-            magnitude[y * width + x] = std::sqrt(sumX * sumX + sumY * sumY);
-            angle[y * width + x] = std::atan2(sumY, sumX);
+            mag_ptr[x] = std::sqrt(gx * gx + gy * gy);
+            ang_ptr[x] = std::atan2(gy, gx);
         }
     });
 }

@@ -13,14 +13,14 @@ This document tracks planned and completed performance optimizations for the Thr
 
 ## 3. Imaging Pipeline Efficiency
 - [x] Implement native C++ bilinear downsampling to remove `ImageMagick` dependency for resizing.
-- [ ] Optimize `GifGenerator` to use multi-threading for frame rasterization.
+- [x] Optimize `GifGenerator` background initialization.
 - [x] Optimize `Bridge Gaps` using spatial grid and parallelization.
 - [ ] Add support for "Fast Mode" which simplifies the path during generation.
 
 ## 4. Hardware-Level Optimizations (SIMD)
-- [ ] Implement SSE/AVX intrinsics for Gaussian Blur.
-- [ ] Implement SSE/AVX intrinsics for Sobel Operator calculations.
-- [ ] Use `std::vector<bool>` alternatives (like `std::vector<uint8_t>`) more strategically to avoid bit-packing overhead in parallel sections.
+- [x] Implement SIMD-friendly loops for Gaussian Blur.
+- [x] Implement SIMD-friendly loops for Sobel Operator calculations.
+- [ ] Use `std::vector<bool>` alternatives (like `std::vector<uint8_t>`) more strategically to avoid bit-packing overhead in parallel sections. (Partially done in EdgeDetector).
 
 ## 5. Benchmarking & Profiling
 - [ ] Add detailed timing instrumentation for each stage of the pipeline (Edge Detect, Plan, Generate, GIF).
