@@ -1,26 +1,25 @@
 # ThrGen C++ Optimization Task List
 
-This document tracks planned and completed performance optimizations for the ThrGen engine.
+This document tracks performance optimizations for the ThrGen engine based on the current implementation.
 
 ## 1. Path Planner: Efficient Global Search
-- [x] Implement a Spatial Index (Grid-of-Buckets) for unvisited points to replace $O(N)$ BFS search.
-- [x] Optimize "trace-back" pathfinding by using a simplified graph of junction points rather than pixel-by-pixel BFS. (Optimized with reused buffers and sparse grid exploration).
-- [x] Reduce redundant distance calculations in the jumping logic. (Implemented Bounding Box Pruning and Component-based Sampling).
+- [x] Maintain a spatial grid of already-visited path points to accelerate nearest searches.
+- [x] Sample component points with a stride during global searches to reduce scan cost on large components.
+- [x] Reuse a preallocated parent buffer for BFS backtracking over the existing path.
 
 ## 2. Parallelize Component Labeling & Hysteresis
-- [x] Replace stack-based BFS component labeling with a Parallel Disjoint Set Union (DSU) algorithm.
-- [x] Parallelize the seed-finding phase of Hysteresis thresholding.
+- [x] Use a parallel Disjoint Set Union (DSU) for component labeling with lock-based unions.
+- [x] Parallelize the strong-seed scan in hysteresis thresholding.
 
 ## 3. Imaging Pipeline Efficiency
-- [x] Implement native C++ bilinear downsampling to remove `ImageMagick` dependency for resizing.
-- [x] Optimize `GifGenerator` background initialization.
-- [x] Optimize `Bridge Gaps` using spatial grid and parallelization.
+- [x] Implement native C++ bilinear downsampling for resizing.
+- [x] Optimize `GifGenerator` background initialization with a parallel fill.
+- [x] Optimize `Bridge Gaps` neighbor counting with parallelization and a spatial grid of endpoints.
+- [ ] Remove ImageMagick from the common path for unsupported formats (currently still a fallback).
 
-## 4. Hardware-Level Optimizations (SIMD)
-- [x] Implement SIMD-friendly loops for Gaussian Blur.
-- [x] Implement SIMD-friendly loops for Sobel Operator calculations.
+## 4. Data Structure Improvements
 - [x] Use `std::vector<uint8_t>` instead of `std::vector<bool>` to avoid bit-packing overhead in parallel sections.
 
 ## 5. Benchmarking & Profiling
-- [x] Add detailed timing instrumentation for each stage of the pipeline (Edge Detect, Plan, Generate, GIF).
-- [x] Timing data included in JSON API response.
+- [x] Add timing instrumentation for the main pipeline stages (edge detection, path planning, THR generation, GIF/PNG).
+- [x] Include timing data in the JSON API response.

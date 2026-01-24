@@ -6,19 +6,20 @@ A high-performance C++ tool for generating Sisyphus kinetic sand table tracks fr
 
 -   **High Performance**: Built with C++17 for fast image processing and path optimization.
 -   **No OpenCV Dependency**: Uses a custom, optimized Canny Edge Detector.
--   **Intelligent Path Planning**:
-    -   **Component Connectivity**: Connects disjoint parts of an image using Minimum Spanning Tree logic.
-    -   **Perimeter Routing**: Routes travel moves along the table's hidden perimeter to avoid drawing unwanted lines across the sand.
-    -   **DFS Backtracking**: Ensures a continuous, valid path by doubling back over existing lines when necessary.
-    -   **Noise Filtering**: Automatically removes small artifacts to ensure a clean result.
+-   **Path Planning for Continuous Output**:
+    -   **Parallel Component Labeling**: Finds connected edge components with a DSU-based pass.
+    -   **Spatial Grid Acceleration**: Uses a grid of already-visited path points to speed global nearest searches.
+    -   **Component Sampling**: Strides through large components to reduce global search cost.
+    -   **Path Backtracking**: Uses BFS over existing path points to keep a continuous pen-down path.
+    -   **Gap Bridging**: Connects nearby edge endpoints to reduce small discontinuities.
 -   **Modern Web Interface**:
     -   **Dark Mode UI**: A professional, dark-themed interface.
-    -   **Drag-and-Drop**: Easy file upload support.
+    -   **Drag-and-Drop**: Easy file upload support (images and `.thr` files).
     -   **Visualization**: View detected edges, the optimized path (gradient-colored for direction), and a simulated animation.
     -   **Zen Garden Simulation**: Generates an animated GIF showing a steel ball tracing the path on a sand bed.
 -   **Robustness**:
-    -   Handles various image formats (WebP/HEIC) via ImageMagick.
-    -   Automatically resizes extremely large images to manageable dimensions.
+    -   Loads common formats via `stb_image`, with ImageMagick fallback for unsupported inputs (e.g., some WebP/HEIC files).
+    -   Automatically resizes images larger than 2048px on either dimension.
     -   Masks image borders to prevent "frame" detection artifacts.
 
 ## Examples
@@ -69,7 +70,9 @@ make
 ### CLI Tool
 Batch processing and visualization:
 ```bash
-./ThrGenCLI gen input.jpg output.thr --low 50 --high 150 --gif preview.gif --path path.png
+./ThrGenCLI gen input.jpg output.thr --low 50 --high 150 --gif preview.gif --png path.png --edges edges.png
+./ThrGenCLI vis input.thr --gif preview.gif --png path.png --size 1024
+./ThrGenCLI bench
 ```
 
 ## Documentation
@@ -80,5 +83,5 @@ For a deep dive into the system design, algorithms, and data flow, please refer 
 
 ```bash
 # Run unit and integration tests
-./ThrGenCpp_Tests
+./build/ThrGenCpp_Tests
 ```
